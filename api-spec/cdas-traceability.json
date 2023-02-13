@@ -1,0 +1,473 @@
+{
+  "openapi": "3.0.2",
+  "info": {
+    "title": "Traceability Service - Data Access Service",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/status": {
+      "get": {
+        "tags": [
+          "Montoring"
+        ],
+        "summary": "Provides monitoring information.",
+        "operationId": "ping_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Ping Status Get",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/traces": {
+      "put": {
+        "tags": [
+          "Authorized Users"
+        ],
+        "summary": "Registers a new set of traces in the system.",
+        "description": "This endpoint registers new traces in the system.\n\nIf any of the traces already exist, then the previous traces will be overwritten.",
+        "operationId": "put_traces_v1_traces_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "Traces",
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Trace"
+                }
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Indicates that the traces were successfully registered in the system.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraceRegistration"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Traces can only be registered by authorized users."
+          },
+          "413": {
+            "description": "Too many traces were included in the request."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/traces/{productname}": {
+      "get": {
+        "tags": [
+          "Trace Retrieval"
+        ],
+        "summary": "Returns all traces for a given product name.",
+        "description": "This endpoint returns all traces for a given product name.\n\nMultiple trace may exist for a single product to indicate the product's history\n(e.g. creation, copying, deletion) and origin.",
+        "operationId": "get_trace_v1_traces__productname__get",
+        "parameters": [
+          {
+            "required": true,
+            "schema": {
+              "title": "Productname",
+              "type": "string"
+            },
+            "name": "productname",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Traces for the given product were found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Trace V1 Traces  Productname  Get",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Trace"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No traces for the given product were found."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/traces/hash/{hash}": {
+      "get": {
+        "tags": [
+          "Trace Retrieval"
+        ],
+        "summary": "Returns all traces for a given filehash.",
+        "description": "This endpoint returns all traces for a given filehash.\n\nThe filehash may be the product's own hash, or it may be of a product's contents.\n\nWhen a product name is supplied, then the search is being made only for that specific product and its contents.",
+        "operationId": "search_hash_v1_traces_hash__hash__get",
+        "parameters": [
+          {
+            "required": true,
+            "schema": {
+              "title": "Filehash",
+              "type": "string"
+            },
+            "name": "hash",
+            "in": "path"
+          },
+          {
+            "required": true,
+            "schema": {
+              "title": "Filehash",
+              "type": "string"
+            },
+            "name": "filehash",
+            "in": "query"
+          },
+          {
+            "required": false,
+            "schema": {
+              "title": "Productname",
+              "type": "string"
+            },
+            "name": "productname",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Traces for the given filehash were found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Search Hash V1 Traces Hash  Hash  Get",
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Trace"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No traces for the given filehash were found."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/traces/{productname}/validate": {
+      "get": {
+        "tags": [
+          "Trace Validation"
+        ],
+        "summary": "Validates a given product against a given filehash.",
+        "description": "This endpoint validates a given product against a provided filehash.",
+        "operationId": "validate_product_v1_traces__productname__validate_get",
+        "parameters": [
+          {
+            "required": true,
+            "schema": {
+              "title": "Productname",
+              "type": "string"
+            },
+            "name": "productname",
+            "in": "path"
+          },
+          {
+            "required": true,
+            "schema": {
+              "title": "Filehash",
+              "type": "string"
+            },
+            "name": "filehash",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Traces for the given filehash were found and a validation has been performed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraceValidation"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No traces for the given product were found."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "title": "HTTPValidationError",
+        "type": "object",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            }
+          }
+        }
+      },
+      "Product": {
+        "title": "Product",
+        "required": [
+          "name",
+          "size",
+          "hash"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "title": "The name of the product.",
+            "type": "string"
+          },
+          "size": {
+            "title": "The product's filesize in number of bytes.",
+            "type": "integer"
+          },
+          "hash": {
+            "title": "The product's filehash as calculated by the given hash algorithm.",
+            "type": "string"
+          },
+          "contents": {
+            "title": "The path and filehashes of the product's contents",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "A dictionary of key-value pairs corresponding to path within product and the respective filehash. May be empty if the product is a single file.",
+            "default": {}
+          },
+          "inputs": {
+            "title": "The input products used to derive this product from.",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "A dictionary of key-value pairs corresponding to product name and the respective filehash. May be empty if the product has no inputs, or the inputs are not known.",
+            "default": {}
+          }
+        },
+        "description": "A product is either a file itself, or a collection of files."
+      },
+      "Signature": {
+        "title": "Signature",
+        "required": [
+          "signature",
+          "algorithm",
+          "public_key"
+        ],
+        "type": "object",
+        "properties": {
+          "signature": {
+            "title": "The signature of the trace's product section.",
+            "type": "string"
+          },
+          "algorithm": {
+            "title": "The signature algorithm used to create the signature.",
+            "type": "string"
+          },
+          "public_key": {
+            "title": "The public key of the signing authority.",
+            "type": "string"
+          }
+        },
+        "description": "The trace signature can be used to verify a products integrity.\n\nThe signature is created using an asymetric, public-key encryption system.\nThe bytes being signed corespond to the trace's product dictionary, in lower-case,\ncompact JSON format (i.e. without whitespaces or linebreaks) and encoded in utf-8."
+      },
+      "Trace": {
+        "title": "Trace",
+        "required": [
+          "product",
+          "timestamp",
+          "origin",
+          "event",
+          "hash_algorithm",
+          "signature"
+        ],
+        "type": "object",
+        "properties": {
+          "product": {
+            "title": "The product for which the trace is generated.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Product"
+              }
+            ]
+          },
+          "timestamp": {
+            "title": "The timestamp when the trace has been generated.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "origin": {
+            "title": "The creator of this trace, e.g. lta@csc.esa.int",
+            "type": "string"
+          },
+          "event": {
+            "title": "The trace event.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TraceEvent"
+              }
+            ]
+          },
+          "hash_algorithm": {
+            "title": "The hashing algorithm used to create all filehashes in this trace.",
+            "type": "string"
+          },
+          "signature": {
+            "title": "The signature of this product as signed by the trace origin.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Signature"
+              }
+            ]
+          }
+        },
+        "description": "A trace describes a specific event for a product at a specific origin."
+      },
+      "TraceEvent": {
+        "title": "TraceEvent",
+        "enum": [
+          "CREATE",
+          "COPY",
+          "DELETE"
+        ],
+        "type": "string",
+        "description": "A trace event describes how the trace comes into life.\n\nCREATE: A new product is generated.\nCOPY: A product is copied from to a new location.\nDELETE: A product is removed from for a given reason."
+      },
+      "TraceRegistration": {
+        "title": "TraceRegistration",
+        "required": [
+          "success",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "description": "The results of a trace registration."
+      },
+      "TraceValidation": {
+        "title": "TraceValidation",
+        "required": [
+          "success",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "description": "The results of a trace validation"
+      },
+      "ValidationError": {
+        "title": "ValidationError",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "type": "object",
+        "properties": {
+          "loc": {
+            "title": "Location",
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            }
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}
