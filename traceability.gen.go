@@ -28,21 +28,30 @@ const (
 	DELETE TraceEvent = "DELETE"
 )
 
+// Content A product's content contains the path and the filehash
+type Content struct {
+	Hash string `json:"hash"`
+	Path string `json:"path"`
+}
+
 // HTTPValidationError defines model for HTTPValidationError.
 type HTTPValidationError struct {
 	Detail *[]ValidationError `json:"detail,omitempty"`
 }
 
+// Input The input product used to derive a product from.
+type Input struct {
+	Hash        string `json:"hash"`
+	ProductName string `json:"product_name"`
+}
+
 // Product A product is either a file itself, or a collection of files.
 type Product struct {
-	// Contents A dictionary of key-value pairs corresponding to path within product and the respective filehash. May be empty if the product is a single file.
-	Contents *map[string]string `json:"contents,omitempty"`
-	Hash     string             `json:"hash"`
-
-	// Inputs A dictionary of key-value pairs corresponding to product name and the respective filehash. May be empty if the product has no inputs, or the inputs are not known.
-	Inputs *map[string]string `json:"inputs,omitempty"`
-	Name   string             `json:"name"`
-	Size   int                `json:"size"`
+	Contents *[]Content `json:"contents,omitempty"`
+	Hash     string     `json:"hash"`
+	Inputs   *[]Input   `json:"inputs,omitempty"`
+	Name     string     `json:"name"`
+	Size     int        `json:"size"`
 }
 
 // Signature The trace signature can be used to verify a products integrity.
@@ -103,22 +112,21 @@ type ValidationError_Loc_Item struct {
 	union json.RawMessage
 }
 
-// PutTracesV1TracesPutJSONBody defines parameters for PutTracesV1TracesPut.
-type PutTracesV1TracesPutJSONBody = []Trace
+// PutTracesV1JSONBody defines parameters for PutTracesV1.
+type PutTracesV1JSONBody = []Trace
 
-// SearchHashV1TracesHashHashGetParams defines parameters for SearchHashV1TracesHashHashGet.
-type SearchHashV1TracesHashHashGetParams struct {
-	Filehash    string  `form:"filehash" json:"filehash"`
-	Productname *string `form:"productname,omitempty" json:"productname,omitempty"`
-}
-
-// ValidateProductV1TracesProductnameValidateGetParams defines parameters for ValidateProductV1TracesProductnameValidateGet.
-type ValidateProductV1TracesProductnameValidateGetParams struct {
+// SearchHashV1Params defines parameters for SearchHashV1.
+type SearchHashV1Params struct {
 	Filehash string `form:"filehash" json:"filehash"`
 }
 
-// PutTracesV1TracesPutJSONRequestBody defines body for PutTracesV1TracesPut for application/json ContentType.
-type PutTracesV1TracesPutJSONRequestBody = PutTracesV1TracesPutJSONBody
+// ValidateProductParams defines parameters for ValidateProduct.
+type ValidateProductParams struct {
+	Filehash string `form:"filehash" json:"filehash"`
+}
+
+// PutTracesV1JSONRequestBody defines body for PutTracesV1 for application/json ContentType.
+type PutTracesV1JSONRequestBody = PutTracesV1JSONBody
 
 // AsValidationErrorLoc0 returns the union data inside the ValidationError_Loc_Item as a ValidationErrorLoc0
 func (t ValidationError_Loc_Item) AsValidationErrorLoc0() (ValidationErrorLoc0, error) {
@@ -258,19 +266,19 @@ type ClientInterface interface {
 	// PingStatusGet request
 	PingStatusGet(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// PutTracesV1TracesPut request with any body
-	PutTracesV1TracesPutWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// PutTracesV1 request with any body
+	PutTracesV1WithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	PutTracesV1TracesPut(ctx context.Context, body PutTracesV1TracesPutJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	PutTracesV1(ctx context.Context, body PutTracesV1JSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// SearchHashV1TracesHashHashGet request
-	SearchHashV1TracesHashHashGet(ctx context.Context, hash string, params *SearchHashV1TracesHashHashGetParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// SearchHashV1 request
+	SearchHashV1(ctx context.Context, hash string, params *SearchHashV1Params, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetTraceV1TracesProductnameGet request
-	GetTraceV1TracesProductnameGet(ctx context.Context, productname string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// GetTraceV1 request
+	GetTraceV1(ctx context.Context, productname string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ValidateProductV1TracesProductnameValidateGet request
-	ValidateProductV1TracesProductnameValidateGet(ctx context.Context, productname string, params *ValidateProductV1TracesProductnameValidateGetParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// ValidateProduct request
+	ValidateProduct(ctx context.Context, productname string, params *ValidateProductParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) PingStatusGet(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -285,8 +293,8 @@ func (c *Client) PingStatusGet(ctx context.Context, reqEditors ...RequestEditorF
 	return c.Client.Do(req)
 }
 
-func (c *Client) PutTracesV1TracesPutWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPutTracesV1TracesPutRequestWithBody(c.Server, contentType, body)
+func (c *Client) PutTracesV1WithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutTracesV1RequestWithBody(c.Server, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -297,8 +305,8 @@ func (c *Client) PutTracesV1TracesPutWithBody(ctx context.Context, contentType s
 	return c.Client.Do(req)
 }
 
-func (c *Client) PutTracesV1TracesPut(ctx context.Context, body PutTracesV1TracesPutJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewPutTracesV1TracesPutRequest(c.Server, body)
+func (c *Client) PutTracesV1(ctx context.Context, body PutTracesV1JSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutTracesV1Request(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -309,8 +317,8 @@ func (c *Client) PutTracesV1TracesPut(ctx context.Context, body PutTracesV1Trace
 	return c.Client.Do(req)
 }
 
-func (c *Client) SearchHashV1TracesHashHashGet(ctx context.Context, hash string, params *SearchHashV1TracesHashHashGetParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewSearchHashV1TracesHashHashGetRequest(c.Server, hash, params)
+func (c *Client) SearchHashV1(ctx context.Context, hash string, params *SearchHashV1Params, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchHashV1Request(c.Server, hash, params)
 	if err != nil {
 		return nil, err
 	}
@@ -321,8 +329,8 @@ func (c *Client) SearchHashV1TracesHashHashGet(ctx context.Context, hash string,
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetTraceV1TracesProductnameGet(ctx context.Context, productname string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetTraceV1TracesProductnameGetRequest(c.Server, productname)
+func (c *Client) GetTraceV1(ctx context.Context, productname string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetTraceV1Request(c.Server, productname)
 	if err != nil {
 		return nil, err
 	}
@@ -333,8 +341,8 @@ func (c *Client) GetTraceV1TracesProductnameGet(ctx context.Context, productname
 	return c.Client.Do(req)
 }
 
-func (c *Client) ValidateProductV1TracesProductnameValidateGet(ctx context.Context, productname string, params *ValidateProductV1TracesProductnameValidateGetParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewValidateProductV1TracesProductnameValidateGetRequest(c.Server, productname, params)
+func (c *Client) ValidateProduct(ctx context.Context, productname string, params *ValidateProductParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewValidateProductRequest(c.Server, productname, params)
 	if err != nil {
 		return nil, err
 	}
@@ -372,19 +380,19 @@ func NewPingStatusGetRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewPutTracesV1TracesPutRequest calls the generic PutTracesV1TracesPut builder with application/json body
-func NewPutTracesV1TracesPutRequest(server string, body PutTracesV1TracesPutJSONRequestBody) (*http.Request, error) {
+// NewPutTracesV1Request calls the generic PutTracesV1 builder with application/json body
+func NewPutTracesV1Request(server string, body PutTracesV1JSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewPutTracesV1TracesPutRequestWithBody(server, "application/json", bodyReader)
+	return NewPutTracesV1RequestWithBody(server, "application/json", bodyReader)
 }
 
-// NewPutTracesV1TracesPutRequestWithBody generates requests for PutTracesV1TracesPut with any type of body
-func NewPutTracesV1TracesPutRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+// NewPutTracesV1RequestWithBody generates requests for PutTracesV1 with any type of body
+func NewPutTracesV1RequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -412,8 +420,8 @@ func NewPutTracesV1TracesPutRequestWithBody(server string, contentType string, b
 	return req, nil
 }
 
-// NewSearchHashV1TracesHashHashGetRequest generates requests for SearchHashV1TracesHashHashGet
-func NewSearchHashV1TracesHashHashGetRequest(server string, hash string, params *SearchHashV1TracesHashHashGetParams) (*http.Request, error) {
+// NewSearchHashV1Request generates requests for SearchHashV1
+func NewSearchHashV1Request(server string, hash string, params *SearchHashV1Params) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -452,22 +460,6 @@ func NewSearchHashV1TracesHashHashGetRequest(server string, hash string, params 
 		}
 	}
 
-	if params.Productname != nil {
-
-		if queryFrag, err := runtime.StyleParamWithLocation("form", true, "productname", runtime.ParamLocationQuery, *params.Productname); err != nil {
-			return nil, err
-		} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-			return nil, err
-		} else {
-			for k, v := range parsed {
-				for _, v2 := range v {
-					queryValues.Add(k, v2)
-				}
-			}
-		}
-
-	}
-
 	queryURL.RawQuery = queryValues.Encode()
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
@@ -478,8 +470,8 @@ func NewSearchHashV1TracesHashHashGetRequest(server string, hash string, params 
 	return req, nil
 }
 
-// NewGetTraceV1TracesProductnameGetRequest generates requests for GetTraceV1TracesProductnameGet
-func NewGetTraceV1TracesProductnameGetRequest(server string, productname string) (*http.Request, error) {
+// NewGetTraceV1Request generates requests for GetTraceV1
+func NewGetTraceV1Request(server string, productname string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -512,8 +504,8 @@ func NewGetTraceV1TracesProductnameGetRequest(server string, productname string)
 	return req, nil
 }
 
-// NewValidateProductV1TracesProductnameValidateGetRequest generates requests for ValidateProductV1TracesProductnameValidateGet
-func NewValidateProductV1TracesProductnameValidateGetRequest(server string, productname string, params *ValidateProductV1TracesProductnameValidateGetParams) (*http.Request, error) {
+// NewValidateProductRequest generates requests for ValidateProduct
+func NewValidateProductRequest(server string, productname string, params *ValidateProductParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -608,19 +600,19 @@ type ClientWithResponsesInterface interface {
 	// PingStatusGet request
 	PingStatusGetWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*PingStatusGetResponse, error)
 
-	// PutTracesV1TracesPut request with any body
-	PutTracesV1TracesPutWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutTracesV1TracesPutResponse, error)
+	// PutTracesV1 request with any body
+	PutTracesV1WithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutTracesV1Response, error)
 
-	PutTracesV1TracesPutWithResponse(ctx context.Context, body PutTracesV1TracesPutJSONRequestBody, reqEditors ...RequestEditorFn) (*PutTracesV1TracesPutResponse, error)
+	PutTracesV1WithResponse(ctx context.Context, body PutTracesV1JSONRequestBody, reqEditors ...RequestEditorFn) (*PutTracesV1Response, error)
 
-	// SearchHashV1TracesHashHashGet request
-	SearchHashV1TracesHashHashGetWithResponse(ctx context.Context, hash string, params *SearchHashV1TracesHashHashGetParams, reqEditors ...RequestEditorFn) (*SearchHashV1TracesHashHashGetResponse, error)
+	// SearchHashV1 request
+	SearchHashV1WithResponse(ctx context.Context, hash string, params *SearchHashV1Params, reqEditors ...RequestEditorFn) (*SearchHashV1Response, error)
 
-	// GetTraceV1TracesProductnameGet request
-	GetTraceV1TracesProductnameGetWithResponse(ctx context.Context, productname string, reqEditors ...RequestEditorFn) (*GetTraceV1TracesProductnameGetResponse, error)
+	// GetTraceV1 request
+	GetTraceV1WithResponse(ctx context.Context, productname string, reqEditors ...RequestEditorFn) (*GetTraceV1Response, error)
 
-	// ValidateProductV1TracesProductnameValidateGet request
-	ValidateProductV1TracesProductnameValidateGetWithResponse(ctx context.Context, productname string, params *ValidateProductV1TracesProductnameValidateGetParams, reqEditors ...RequestEditorFn) (*ValidateProductV1TracesProductnameValidateGetResponse, error)
+	// ValidateProduct request
+	ValidateProductWithResponse(ctx context.Context, productname string, params *ValidateProductParams, reqEditors ...RequestEditorFn) (*ValidateProductResponse, error)
 }
 
 type PingStatusGetResponse struct {
@@ -645,7 +637,7 @@ func (r PingStatusGetResponse) StatusCode() int {
 	return 0
 }
 
-type PutTracesV1TracesPutResponse struct {
+type PutTracesV1Response struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON201      *TraceRegistration
@@ -653,7 +645,7 @@ type PutTracesV1TracesPutResponse struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r PutTracesV1TracesPutResponse) Status() string {
+func (r PutTracesV1Response) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -661,14 +653,14 @@ func (r PutTracesV1TracesPutResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r PutTracesV1TracesPutResponse) StatusCode() int {
+func (r PutTracesV1Response) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type SearchHashV1TracesHashHashGetResponse struct {
+type SearchHashV1Response struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *[]Trace
@@ -676,7 +668,7 @@ type SearchHashV1TracesHashHashGetResponse struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r SearchHashV1TracesHashHashGetResponse) Status() string {
+func (r SearchHashV1Response) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -684,14 +676,14 @@ func (r SearchHashV1TracesHashHashGetResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r SearchHashV1TracesHashHashGetResponse) StatusCode() int {
+func (r SearchHashV1Response) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type GetTraceV1TracesProductnameGetResponse struct {
+type GetTraceV1Response struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *[]Trace
@@ -699,7 +691,7 @@ type GetTraceV1TracesProductnameGetResponse struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r GetTraceV1TracesProductnameGetResponse) Status() string {
+func (r GetTraceV1Response) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -707,14 +699,14 @@ func (r GetTraceV1TracesProductnameGetResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r GetTraceV1TracesProductnameGetResponse) StatusCode() int {
+func (r GetTraceV1Response) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
 	return 0
 }
 
-type ValidateProductV1TracesProductnameValidateGetResponse struct {
+type ValidateProductResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *TraceValidation
@@ -722,7 +714,7 @@ type ValidateProductV1TracesProductnameValidateGetResponse struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r ValidateProductV1TracesProductnameValidateGetResponse) Status() string {
+func (r ValidateProductResponse) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -730,7 +722,7 @@ func (r ValidateProductV1TracesProductnameValidateGetResponse) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r ValidateProductV1TracesProductnameValidateGetResponse) StatusCode() int {
+func (r ValidateProductResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -746,48 +738,48 @@ func (c *ClientWithResponses) PingStatusGetWithResponse(ctx context.Context, req
 	return ParsePingStatusGetResponse(rsp)
 }
 
-// PutTracesV1TracesPutWithBodyWithResponse request with arbitrary body returning *PutTracesV1TracesPutResponse
-func (c *ClientWithResponses) PutTracesV1TracesPutWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutTracesV1TracesPutResponse, error) {
-	rsp, err := c.PutTracesV1TracesPutWithBody(ctx, contentType, body, reqEditors...)
+// PutTracesV1WithBodyWithResponse request with arbitrary body returning *PutTracesV1Response
+func (c *ClientWithResponses) PutTracesV1WithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutTracesV1Response, error) {
+	rsp, err := c.PutTracesV1WithBody(ctx, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePutTracesV1TracesPutResponse(rsp)
+	return ParsePutTracesV1Response(rsp)
 }
 
-func (c *ClientWithResponses) PutTracesV1TracesPutWithResponse(ctx context.Context, body PutTracesV1TracesPutJSONRequestBody, reqEditors ...RequestEditorFn) (*PutTracesV1TracesPutResponse, error) {
-	rsp, err := c.PutTracesV1TracesPut(ctx, body, reqEditors...)
+func (c *ClientWithResponses) PutTracesV1WithResponse(ctx context.Context, body PutTracesV1JSONRequestBody, reqEditors ...RequestEditorFn) (*PutTracesV1Response, error) {
+	rsp, err := c.PutTracesV1(ctx, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParsePutTracesV1TracesPutResponse(rsp)
+	return ParsePutTracesV1Response(rsp)
 }
 
-// SearchHashV1TracesHashHashGetWithResponse request returning *SearchHashV1TracesHashHashGetResponse
-func (c *ClientWithResponses) SearchHashV1TracesHashHashGetWithResponse(ctx context.Context, hash string, params *SearchHashV1TracesHashHashGetParams, reqEditors ...RequestEditorFn) (*SearchHashV1TracesHashHashGetResponse, error) {
-	rsp, err := c.SearchHashV1TracesHashHashGet(ctx, hash, params, reqEditors...)
+// SearchHashV1WithResponse request returning *SearchHashV1Response
+func (c *ClientWithResponses) SearchHashV1WithResponse(ctx context.Context, hash string, params *SearchHashV1Params, reqEditors ...RequestEditorFn) (*SearchHashV1Response, error) {
+	rsp, err := c.SearchHashV1(ctx, hash, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseSearchHashV1TracesHashHashGetResponse(rsp)
+	return ParseSearchHashV1Response(rsp)
 }
 
-// GetTraceV1TracesProductnameGetWithResponse request returning *GetTraceV1TracesProductnameGetResponse
-func (c *ClientWithResponses) GetTraceV1TracesProductnameGetWithResponse(ctx context.Context, productname string, reqEditors ...RequestEditorFn) (*GetTraceV1TracesProductnameGetResponse, error) {
-	rsp, err := c.GetTraceV1TracesProductnameGet(ctx, productname, reqEditors...)
+// GetTraceV1WithResponse request returning *GetTraceV1Response
+func (c *ClientWithResponses) GetTraceV1WithResponse(ctx context.Context, productname string, reqEditors ...RequestEditorFn) (*GetTraceV1Response, error) {
+	rsp, err := c.GetTraceV1(ctx, productname, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseGetTraceV1TracesProductnameGetResponse(rsp)
+	return ParseGetTraceV1Response(rsp)
 }
 
-// ValidateProductV1TracesProductnameValidateGetWithResponse request returning *ValidateProductV1TracesProductnameValidateGetResponse
-func (c *ClientWithResponses) ValidateProductV1TracesProductnameValidateGetWithResponse(ctx context.Context, productname string, params *ValidateProductV1TracesProductnameValidateGetParams, reqEditors ...RequestEditorFn) (*ValidateProductV1TracesProductnameValidateGetResponse, error) {
-	rsp, err := c.ValidateProductV1TracesProductnameValidateGet(ctx, productname, params, reqEditors...)
+// ValidateProductWithResponse request returning *ValidateProductResponse
+func (c *ClientWithResponses) ValidateProductWithResponse(ctx context.Context, productname string, params *ValidateProductParams, reqEditors ...RequestEditorFn) (*ValidateProductResponse, error) {
+	rsp, err := c.ValidateProduct(ctx, productname, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseValidateProductV1TracesProductnameValidateGetResponse(rsp)
+	return ParseValidateProductResponse(rsp)
 }
 
 // ParsePingStatusGetResponse parses an HTTP response from a PingStatusGetWithResponse call
@@ -816,15 +808,15 @@ func ParsePingStatusGetResponse(rsp *http.Response) (*PingStatusGetResponse, err
 	return response, nil
 }
 
-// ParsePutTracesV1TracesPutResponse parses an HTTP response from a PutTracesV1TracesPutWithResponse call
-func ParsePutTracesV1TracesPutResponse(rsp *http.Response) (*PutTracesV1TracesPutResponse, error) {
+// ParsePutTracesV1Response parses an HTTP response from a PutTracesV1WithResponse call
+func ParsePutTracesV1Response(rsp *http.Response) (*PutTracesV1Response, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &PutTracesV1TracesPutResponse{
+	response := &PutTracesV1Response{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -849,15 +841,15 @@ func ParsePutTracesV1TracesPutResponse(rsp *http.Response) (*PutTracesV1TracesPu
 	return response, nil
 }
 
-// ParseSearchHashV1TracesHashHashGetResponse parses an HTTP response from a SearchHashV1TracesHashHashGetWithResponse call
-func ParseSearchHashV1TracesHashHashGetResponse(rsp *http.Response) (*SearchHashV1TracesHashHashGetResponse, error) {
+// ParseSearchHashV1Response parses an HTTP response from a SearchHashV1WithResponse call
+func ParseSearchHashV1Response(rsp *http.Response) (*SearchHashV1Response, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &SearchHashV1TracesHashHashGetResponse{
+	response := &SearchHashV1Response{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -882,15 +874,15 @@ func ParseSearchHashV1TracesHashHashGetResponse(rsp *http.Response) (*SearchHash
 	return response, nil
 }
 
-// ParseGetTraceV1TracesProductnameGetResponse parses an HTTP response from a GetTraceV1TracesProductnameGetWithResponse call
-func ParseGetTraceV1TracesProductnameGetResponse(rsp *http.Response) (*GetTraceV1TracesProductnameGetResponse, error) {
+// ParseGetTraceV1Response parses an HTTP response from a GetTraceV1WithResponse call
+func ParseGetTraceV1Response(rsp *http.Response) (*GetTraceV1Response, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &GetTraceV1TracesProductnameGetResponse{
+	response := &GetTraceV1Response{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -915,15 +907,15 @@ func ParseGetTraceV1TracesProductnameGetResponse(rsp *http.Response) (*GetTraceV
 	return response, nil
 }
 
-// ParseValidateProductV1TracesProductnameValidateGetResponse parses an HTTP response from a ValidateProductV1TracesProductnameValidateGetWithResponse call
-func ParseValidateProductV1TracesProductnameValidateGetResponse(rsp *http.Response) (*ValidateProductV1TracesProductnameValidateGetResponse, error) {
+// ParseValidateProductResponse parses an HTTP response from a ValidateProductWithResponse call
+func ParseValidateProductResponse(rsp *http.Response) (*ValidateProductResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &ValidateProductV1TracesProductnameValidateGetResponse{
+	response := &ValidateProductResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -951,42 +943,41 @@ func ParseValidateProductV1TracesProductnameValidateGetResponse(rsp *http.Respon
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/9xYbW8ctxH+K4NtgaTA6U5y8qHQp7qx6riIY8FSXRSREPB2Z28Zc8k1yb3rxrj/Xsxw",
-	"X7gvts5Rgrj5EEe3HA6HM/M8w5n3SWrKymjU3iWX7xOXFlgK/vPb29vrN0LJTHhp9JW1xtLnypoKrZfI",
-	"Qhl6IRX9JT2W/OnPFvPkMvnTZtC8adVupvqOq8RLrzC5TJ4FTavENxX9FtaKJjlGEksG9eJm+xOmnhRe",
-	"W5PVqQ/WudTKisSTy+QpVGEJpAOUvkALAnKpEKR3qPIVGPqSGqUwpU1gcl5362Q1uXhqtO+cJrJMkrhQ",
-	"1yOZ1jTnrdQ7Mi3DXNSKTOMfY+MyyWcK29Cxb7E52wtVI1RCWgepsRZdZXQm9Q68gUr4Ag7SF1L39xI6",
-	"A18gkCTdYI9sfiFcsYaXooEtApaVb0DmLBg5RICTeqfCDrpv5/ZbkqPDSHunDh0ZGan4gkxsXbIQFNrD",
-	"LomV9js7rSAcpEKltRIeM9g2fMJO7lFDWFc7Y6UvyvVwyOBeqav694xI60wtSvzloSiEA20g3IUzklbD",
-	"TxAWQRsPb7U56GmQWKbT46B2mJFZGVo63RfS9Yfk1sQuHOJEtk/jxPcZR3vR/U7+jB+PMUmA1KDrcouW",
-	"dG4bH9DVapPa4w4t497iu1pazJLLH4Jd7RFtNt0Pt+8gv3ChG7nTwtcW53xA9nkrUgTXCUEqNEWm890e",
-	"rcwbEINX2UArfbO+03eaVAybpYPUIqduTWACoUG4pkRvZbqCqt4qmZ69xQZQp7ZhO8A1zmO5DrrYHbBF",
-	"2kx6MaM0C1lG9vjO5C+GWA5ZuiLfKnNAe5YKh6s7TRQsUg//vHn1PeTGlsLDl3KNa2YOU3s4FNKjq0RK",
-	"iLagpMatRfHW/YVTGHVqMsxIce3zs7/OibCH5DT0g196kd6vwU18nV5sMaeCz358i80ss3iFUNnlJmli",
-	"r9e+MByi5SyNEmLZ3lbf1NEuFIUFrZNkHY5YRe4ZXSZK3ptIepa+t2TDUikLiRu+bpHpu8JU5jIF3KP2",
-	"FO0hb0H4WMJYuZN6HkveGYKqXuXJ5Q8fr+Zs3BXvOd6PuSiYx/rWHf//+MFUoVWO3IcSRSgVlx6pA53x",
-	"KYtRDjecnsPajA0B7vavANe7NSgv/pa6dI1OrKX2i8k4vCxOc1DHS1Pv9DRsLAEwLYZ8IxLZoUZLNLKe",
-	"Jexp5w4pNT15kuRRSRCuY5y27AZzulThd1iJzouyIkMCmSSXSSY8ntHSpBr10nAoUEcaqcBtEXV8zYcQ",
-	"VQ0E3xvRB3nV5u0sy2LfxX5gTH0IbFcdBpYRF8A14K4wh+huqSk5Pb0BJXPkGvHN66unt1eX8BQ0HuIX",
-	"13D/O/3Nq+v/kEi0nJpKYsalmpAgeLsyKb9+13f62dV3V0FvtMliafbdrkAB4flkUbjAXajrknwa7EpW",
-	"CZ2drJKgb+aoq9a3MzTw6mvcSeetCF5aqrAWXa08PxdF6yUbbZqTUInOid2Inl+2n5bovE5TdC6Wvmk/",
-	"9dJbYxQKPefpXrA7c3r50fU+lDFDT3KyB/bDls/5+m9iM2eXf7A5VCYddYZCNy15Te/xfvb+u48av+/a",
-	"pJ81h6ukdLsTPRU+DKJsM9zS14fYh+4RjmolIz892JAeuTHJzagWkXPFVirpG7hBu5cpwhk8E17AUw5K",
-	"9zVZJXu0LiTT+fpifc7VrUItKplcJl+tz9dPKIeEL9jHG+eFr/nPHTKPUUTYwBcZPZWl3t2wyHMkWIfH",
-	"pQsBe3J+HvW2HLKqUjJ4f/OTCxkeqkx8n9etEiDtENRD0D/17KzNatM1rxV0ajgAri5LYZvwut/LDB2U",
-	"RktvSBGQR6kAde8xsXMUqZdGB4HknnRs9hcbBhzfrqr9EkClA9RZZaT2LTOhdUy2YWt4beDwUL/TL3IQ",
-	"uhm9Ex0IZVFkDeB/pfMrWtFty4R7aWrXyR2kUtRjmD3ag5XeI19hEqbac5K4Nxfh/9d1iNa7Gp3/u8ma",
-	"TwrUScOZUBcJVFK/CBsuJoTg5vOZEVa8rfE4S6qLT7L1QRNHpLyQUS90RtrRgS+Ej0N0QIvg+oRTTR/w",
-	"0OJEYSY/fH3+1ULCBFXUKBqtuI+PlGybrv34mbtAtC6oulhSZQyUlEixeVKnqs4Ge9qQBy1Pnvxqrlya",
-	"pi04cxCBTibG5useMOF94tAzLJaQE+H06eCjf5GPpnDd0Etu857+PUZU9nHo+tpqx61Ce3z8/umHL13b",
-	"3s+cyjCMGc+yzCFMnHgAI30nxCV8PvFipf8mwIvxFEg6cDWFCLOIERwKmxa0GDr9UmQYkinncY/wQ6sW",
-	"j/akj46cUcYNa/1WuKLjDPqb/gtMXAkrSqRYcQmm7ojLRtJNfcJYZQrn1QLf/6P13VLlbDW/q9E2g+p8",
-	"2PFbqG+91E2JZhqvR+tTpfePLIOfxq6zohkCBxQpeHMBLcHwz/bfUSmNiHeRmfJ2ZDjO+0Auual11nLb",
-	"13NEfW9i6Jyg5DPko9NYIOIidhu8Rm8l7oWaUdH7KLl+JTKKOYK542WtvKxU10YS2/Azot3VTua7bd6A",
-	"bGvchLYK6byxzZ3+kmcaPO+QRq+omWyk3q0gQ4X0KYz3hkHQmEueY3h+9K+PwQWnkskYkg+D/rOG6HP0",
-	"AZcRQCGy+FEQ7cL6GIR+SMf/G0BHyPilIN207TWeiNZO3M3MEDshtfOhrFMTko0oZAya9ubY5sUCdjqJ",
-	"3wdDv3FpfixEH0RmNI14RPVj3hPRBGYYSFZoqavEPzL+3pyQ6w/VyigQ98fj8fi/AAAA///0WgxfRSAA",
-	"AA==",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

@@ -138,7 +138,15 @@ func CreateProductInfo(filename string, include_pattern glob.Glob) Product {
 	}
 
 	if strings.HasSuffix(filename, ".zip") {
-		p.Contents = HashContents(filename, include_pattern)
+		contents := HashContents(filename, include_pattern)
+		content_list := make([]Content, len(*contents))
+		var i = 0
+		for path, hash := range *contents {
+			content_list[i].Path = path
+			content_list[i].Hash = hash
+			i += 1
+		}
+		p.Contents = &content_list
 	}
 	return p
 }
@@ -154,9 +162,9 @@ func CheckProducts(files []string, url string) {
 
 func CheckProduct(filename string, api *ClientWithResponses) {
 	hash, _ := HashFile(filename)
-	res, err := api.SearchHashV1TracesHashHashGetWithResponse(context.Background(),
+	res, err := api.SearchHashV1WithResponse(context.Background(),
 		EncodeHash(hash),
-		&SearchHashV1TracesHashHashGetParams{
+		&SearchHashV1Params{
 			Filehash: EncodeHash(hash),
 		})
 	if err != nil {
@@ -195,7 +203,7 @@ func CheckProduct(filename string, api *ClientWithResponses) {
 func RegisterTraces(traces []Trace, url string) {
 	api := CreateClient(url)
 
-	res, err := api.PutTracesV1TracesPutWithResponse(context.Background(), traces)
+	res, err := api.PutTracesV1WithResponse(context.Background(), traces)
 	if err != nil {
 		log.Fatalf("Unable to call to API endpoint: %s", err)
 	}

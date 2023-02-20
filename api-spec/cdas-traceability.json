@@ -34,7 +34,7 @@
         ],
         "summary": "Registers a new set of traces in the system.",
         "description": "This endpoint registers new traces in the system.\n\nIf any of the traces already exist, then the previous traces will be overwritten.",
-        "operationId": "put_traces_v1_traces_put",
+        "operationId": "put_traces_v1",
         "requestBody": {
           "content": {
             "application/json": {
@@ -87,7 +87,7 @@
         ],
         "summary": "Returns all traces for a given product name.",
         "description": "This endpoint returns all traces for a given product name.\n\nMultiple trace may exist for a single product to indicate the product's history\n(e.g. creation, copying, deletion) and origin.",
-        "operationId": "get_trace_v1_traces__productname__get",
+        "operationId": "get_trace_v1",
         "parameters": [
           {
             "required": true,
@@ -105,7 +105,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "title": "Response Get Trace V1 Traces  Productname  Get",
+                  "title": "Response Get Trace V1",
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/Trace"
@@ -137,12 +137,12 @@
         ],
         "summary": "Returns all traces for a given filehash.",
         "description": "This endpoint returns all traces for a given filehash.\n\nThe filehash may be the product's own hash, or it may be of a product's contents.\n\nWhen a product name is supplied, then the search is being made only for that specific product and its contents.",
-        "operationId": "search_hash_v1_traces_hash__hash__get",
+        "operationId": "search_hash_v1",
         "parameters": [
           {
             "required": true,
             "schema": {
-              "title": "Filehash",
+              "title": "Hash",
               "type": "string"
             },
             "name": "hash",
@@ -156,15 +156,6 @@
             },
             "name": "filehash",
             "in": "query"
-          },
-          {
-            "required": false,
-            "schema": {
-              "title": "Productname",
-              "type": "string"
-            },
-            "name": "productname",
-            "in": "query"
           }
         ],
         "responses": {
@@ -173,7 +164,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "title": "Response Search Hash V1 Traces Hash  Hash  Get",
+                  "title": "Response Search Hash V1",
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/Trace"
@@ -205,7 +196,7 @@
         ],
         "summary": "Validates a given product against a given filehash.",
         "description": "This endpoint validates a given product against a provided filehash.",
-        "operationId": "validate_product_v1_traces__productname__validate_get",
+        "operationId": "validate_product",
         "parameters": [
           {
             "required": true,
@@ -256,6 +247,25 @@
   },
   "components": {
     "schemas": {
+      "Content": {
+        "title": "Content",
+        "required": [
+          "path",
+          "hash"
+        ],
+        "type": "object",
+        "properties": {
+          "path": {
+            "title": "The path to the content of the product.",
+            "type": "string"
+          },
+          "hash": {
+            "title": "The filehash of the content.",
+            "type": "string"
+          }
+        },
+        "description": "A product's content contains the path and the filehash"
+      },
       "HTTPValidationError": {
         "title": "HTTPValidationError",
         "type": "object",
@@ -268,6 +278,25 @@
             }
           }
         }
+      },
+      "Input": {
+        "title": "Input",
+        "required": [
+          "product_name",
+          "hash"
+        ],
+        "type": "object",
+        "properties": {
+          "product_name": {
+            "title": "The name of the product used to derive the product from.",
+            "type": "string"
+          },
+          "hash": {
+            "title": "The filehash of the product which is referred.",
+            "type": "string"
+          }
+        },
+        "description": "The input product used to derive a product from."
       },
       "Product": {
         "title": "Product",
@@ -292,21 +321,19 @@
           },
           "contents": {
             "title": "The path and filehashes of the product's contents",
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Content"
             },
-            "description": "A dictionary of key-value pairs corresponding to path within product and the respective filehash. May be empty if the product is a single file.",
-            "default": {}
+            "default": []
           },
           "inputs": {
             "title": "The input products used to derive this product from.",
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Input"
             },
-            "description": "A dictionary of key-value pairs corresponding to product name and the respective filehash. May be empty if the product has no inputs, or the inputs are not known.",
-            "default": {}
+            "default": []
           }
         },
         "description": "A product is either a file itself, or a collection of files."
