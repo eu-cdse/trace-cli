@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -132,7 +133,7 @@ func CreateProductInfo(filename string, include_pattern glob.Glob) Product {
 	var p = Product{
 		// Contents *map[string]string
 		// Inputs *map[string]string
-		Name: filename,
+		Name: filepath.Base(filename),
 		Hash: EncodeHash(hash),
 		Size: int(size),
 	}
