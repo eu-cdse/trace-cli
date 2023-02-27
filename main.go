@@ -55,6 +55,7 @@ func main() {
 	log.SetLevel(log.WarnLevel)
 
 	hash_func := flag.String("algorithm", string(hash_function), "The selected checksum algorithm, can be any of the following: SHA256, SHA3, BLAKE3.")
+	cert_file := flag.String("cert", "", "The path to the PEM file holding the private key.")
 	url := flag.String("url", "https://64.225.133.55.nip.io/", "The address to the traceabilty service API endpoint.")
 	event := flag.String("event", "CREATE", "The trace event, can be any of the following: CREATE, COPY, DELETE.")
 	include_glob := flag.String("include", "*", "A glob pattern defining the elements within an archive to include.")
@@ -78,6 +79,7 @@ func main() {
 	trace_event := TraceEvent(strings.ToUpper(*event)).Validate()
 	hash_function = Algorithm(strings.ToUpper(*hash_func)).Validate()
 	include_pattern := ValidateIncludePattern(*include_glob)
+	private_key := ValidateCertFile(*cert_file)
 
 	command_args := flag.Args()
 	if len(command_args) < 1 {
@@ -97,11 +99,11 @@ func main() {
 	case CHECK:
 		CheckProducts(files, *url)
 	case PRINT:
-		traces := CreateProductInfos(files, include_pattern, trace_event)
+		traces := CreateProductInfos(files, include_pattern, trace_event, private_key)
 		traces_json, _ := json.MarshalIndent(traces, "", "\t")
 		fmt.Printf("%s\n", traces_json)
 	case REGISTER:
-		traces := CreateProductInfos(files, include_pattern, trace_event)
+		traces := CreateProductInfos(files, include_pattern, trace_event, private_key)
 		RegisterTraces(traces, *url)
 	case STATUS:
 		CheckStatus(*url)
@@ -112,7 +114,7 @@ func main() {
 	}
 }
 
-func CreateProductInfos(files []string, include_pattern glob.Glob, event TraceEvent) []Trace {
+func CreateProductInfos(files []string, include_pattern glob.Glob, event TraceEvent, key any) []Trace {
 	log.WithFields(log.Fields{"files": files}).Infof("Creating traces for %d product(s)...", len(files))
 	traces := make([]Trace, len(files))
 	for i, filename := range files {
@@ -124,6 +126,7 @@ func CreateProductInfos(files []string, include_pattern glob.Glob, event TraceEv
 			Product:       p,
 			Timestamp:     time.Now(),
 			Origin:        host,
+			Signature:     CreateSignature(&p, key),
 		}
 	}
 	return traces
@@ -131,11 +134,11 @@ func CreateProductInfos(files []string, include_pattern glob.Glob, event TraceEv
 func CreateProductInfo(filename string, include_pattern glob.Glob) Product {
 	hash, size := HashFile(filename)
 	var p = Product{
-		// Contents *map[string]string
-		// Inputs *map[string]string
-		Name: filepath.Base(filename),
-		Hash: EncodeHash(hash),
-		Size: int(size),
+		Contents: &[]Content{}, //FIXME: necessary to align signature rn, should be nil
+		Inputs:   &[]Input{},   //FIXME: necessary to align signature rn, should be nil
+		Name:     filepath.Base(filename),
+		Hash:     EncodeHash(hash),
+		Size:     int(size),
 	}
 
 	if strings.HasSuffix(filename, ".zip") {
@@ -152,16 +155,40 @@ func CreateProductInfo(filename string, include_pattern glob.Glob) Product {
 	return p
 }
 
-func CheckProducts(files []string, url string) {
-	log.WithFields(log.Fields{"files": files}).Infof("Checking traces for %d product(s)...", len(files))
-	api := CreateClient(url)
+func CreateSignature(p *Product, key any) Signature {
+	if key == nil {
+		return Signature{}
+	}
+	data := CreateSignatureContents(p)
+	algorithm, signature, public_key := Sign(data, key)
 
-	for _, filename := range files {
-		CheckProduct(filename, api)
+	return Signature{
+		Algorithm: algorithm,
+		PublicKey: EncodeHash(public_key),
+		Signature: EncodeHash(signature),
 	}
 }
 
-func CheckProduct(filename string, api *ClientWithResponses) {
+func CreateSignatureContents(p *Product) []byte {
+	data, _ := json.Marshal(p)
+	return data
+}
+
+func CheckProducts(files []string, url string) bool {
+	log.WithFields(log.Fields{"files": files}).Infof("Checking traces for %d product(s)...", len(files))
+	api := CreateClient(url)
+
+	var success = true
+
+	for _, filename := range files {
+		check := CheckProduct(filename, api)
+		success = success && check // all products need to have a valid trace
+	}
+
+	return success
+}
+
+func CheckProduct(filename string, api *ClientWithResponses) bool {
 	hash, _ := HashFile(filename)
 	res, err := api.SearchHashV1WithResponse(context.Background(), EncodeHash(hash))
 	if err != nil {
@@ -184,17 +211,57 @@ func CheckProduct(filename string, api *ClientWithResponses) {
 		//TODO also try other hash algorithms
 	} else {
 		fmt.Printf("%s %s\tfound %d traces:\n", EncodeHash(hash), filename, len(*traces))
+		var success = false
 		for _, t := range *traces {
-			// TODO signature check
-			var check string
-			if Algorithm(t.HashAlgorithm) == hash_function {
-				check = "OK"
-			} else {
-				check = "FAIL"
+			check, status := ValidateTrace(&t, hash, hash_function)
+
+			fmt.Printf("\t%s  %10s %20s  %-25s %s\n",
+				t.Timestamp.UTC().Format(time.RFC3339),
+				t.Event,
+				t.Origin,
+				status,
+				t.Product.Name)
+
+			success = check || success // any trace match is considered success
+		}
+		return success
+	}
+	return false
+}
+
+func ValidateTrace(t *Trace, hash []byte, hash_func Algorithm) (bool, string) {
+	log.WithFields(log.Fields{"trace": t}).Debug("Checking Trace")
+	sig, sig_err := DecodeHash(t.Signature.Signature)
+	key, key_err := DecodeHash(t.Signature.PublicKey)
+	hash_str := EncodeHash(hash)
+
+	if hash_func != Algorithm(t.HashAlgorithm) {
+		return false, "FAIL (Wrong Algorithm)"
+	} else if len(t.Product.Hash) == 0 || !(hash_str == t.Product.Hash ||
+		ContentChecksumMatch(t.Product.Contents, hash_str)) {
+		return false, "FAIL (Checksum Mismatch)"
+		// } else if size != int64(t.Product.Size) { //Filename check only works on main product
+		// 	check = "FAIL (Filesize Mismatch)"
+	} else if len(t.Signature.Signature) == 0 {
+		return true, "OK (Unsigned)"
+	} else if sig_err != nil || key_err != nil ||
+		VerifySignature(CreateSignatureContents(&t.Product), sig, key,
+			t.Signature.Algorithm) == false {
+		return false, "FAIL (Signature Invalid)"
+	}
+	return true, "OK"
+}
+
+func ContentChecksumMatch(contents *[]Content, checksum string) bool {
+	if contents == nil {
+		return false
 			}
-			fmt.Printf("\t%s\t%s\t%s\t%s\t%s\n", t.Timestamp.Format(time.RFC3339), t.Event, t.Origin, check, t.Product.Name)
+	for _, c := range *contents {
+		if c.Hash == checksum {
+			return true
 		}
 	}
+	return false
 }
 
 func RegisterTraces(traces []Trace, url string) {
@@ -270,4 +337,17 @@ func (a Algorithm) Validate() Algorithm {
 }
 func ValidateIncludePattern(pattern string) glob.Glob {
 	return glob.MustCompile(pattern)
+}
+
+func ValidateCertFile(certfile string) any {
+	if len(certfile) == 0 {
+		return nil
+	}
+	key_bytes, err := os.ReadFile(certfile)
+	if err != nil {
+		log.Fatalf("Unable to read PEM file holding the private key for signing from '%s': %s", certfile, err.Error())
+	}
+
+	key := DecodePrivateKey(key_bytes)
+	return key
 }

@@ -9,6 +9,7 @@ require (
 	github.com/minio/sha256-simd v1.0.0
 	github.com/rsc/getopt v0.0.0-20170811000552-20be20937449
 	github.com/sirupsen/logrus v1.9.0
+	github.com/youmark/pkcs8 v0.0.0-20201027041543-1326539a0a0a
 	github.com/zeebo/blake3 v0.2.3
 	golang.org/x/crypto v0.5.0
 )
