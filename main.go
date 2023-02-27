@@ -97,7 +97,11 @@ func main() {
 
 	switch Command(strings.ToUpper(command_args[0])) {
 	case CHECK:
-		CheckProducts(files, *url)
+		check := CheckProducts(files, *url)
+		if !check {
+			log.Error("Not all products could be validated successfully.")
+			os.Exit(1)
+		}
 	case PRINT:
 		traces := CreateProductInfos(files, include_pattern, trace_event, private_key)
 		traces_json, _ := json.MarshalIndent(traces, "", "\t")
