@@ -200,6 +200,10 @@ func CheckProduct(filename string, api *ClientWithResponses) bool {
 	}
 
 	if res.JSON200 == nil {
+		if res.StatusCode() == 404 {
+			log.Errorf("No traces found for %s %s: %s\n", filename, EncodeHash(hash), string(res.Body))
+			return false
+		}
 		log.Fatalf("Invalid response from service: %s\n%s", res.Status(), string(res.Body))
 	}
 	traces := res.JSON200
