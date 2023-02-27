@@ -7,6 +7,7 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
 	"encoding/hex"
 	"io"
 	"os"
@@ -83,8 +84,20 @@ func HashFile(filename string) ([]byte, int64) {
 	return sum, size
 }
 
-func HashData(src io.Reader) []byte {
-	switch hash_function {
+func HashString(data string, algorithm ...Algorithm) []byte {
+	return HashData(strings.NewReader(data), algorithm...)
+}
+func HashBytes(data []byte, algorithm ...Algorithm) []byte {
+	return HashData(bytes.NewReader(data), algorithm...)
+}
+
+func HashData(src io.Reader, algorithm ...Algorithm) []byte {
+	var algo = hash_function
+	if len(algorithm) > 0 {
+		algo = algorithm[0]
+	}
+
+	switch algo {
 	case SHA3:
 		hasher := sha3.New256()
 		io.Copy(hasher, src)

@@ -12,8 +12,7 @@ func TestHashDataBlake3(t *testing.T) {
 	data := "abcd1234"
 	expected := "e8b21af482045332254fc63468995bac6a013a19c080a542c31289312d382b87"
 
-	hash_function = BLAKE3
-	bytes := HashData(strings.NewReader(data))
+	bytes := HashData(strings.NewReader(data), BLAKE3)
 	actual := EncodeHash(bytes)
 
 	if actual != expected {
@@ -25,8 +24,7 @@ func TestHashDataSha3(t *testing.T) {
 	data := "abcd1234"
 	expected := "6366c340328616f0393c1647ffd72b7252ce8ff0090240c095253f255c8edeb1"
 
-	hash_function = SHA3
-	bytes := HashData(strings.NewReader(data))
+	bytes := HashData(strings.NewReader(data), SHA3)
 	actual := EncodeHash(bytes)
 
 	if actual != expected {
@@ -38,8 +36,7 @@ func TestHashDataSha256(t *testing.T) {
 	data := "abcd1234"
 	expected := "e9cee71ab932fde863338d08be4de9dfe39ea049bdafb342ce659ec5450b69ae"
 
-	hash_function = SHA256
-	bytes := HashData(strings.NewReader(data))
+	bytes := HashData(strings.NewReader(data), SHA256)
 	actual := EncodeHash(bytes)
 
 	if actual != expected {
