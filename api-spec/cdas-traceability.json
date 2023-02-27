@@ -136,7 +136,7 @@
           "Trace Retrieval"
         ],
         "summary": "Returns all traces for a given filehash.",
-        "description": "This endpoint returns all traces for a given filehash.\n\nThe filehash may be the product's own hash, or it may be of a product's contents.\n\nWhen a product name is supplied, then the search is being made only for that specific product and its contents.",
+        "description": "This endpoint returns all traces for a given filehash.\n\nThe filehash may be the product's own hash, or it may be of a product's contents.",
         "operationId": "search_hash_v1",
         "parameters": [
           {
@@ -147,15 +147,6 @@
             },
             "name": "hash",
             "in": "path"
-          },
-          {
-            "required": true,
-            "schema": {
-              "title": "Filehash",
-              "type": "string"
-            },
-            "name": "filehash",
-            "in": "query"
           }
         ],
         "responses": {

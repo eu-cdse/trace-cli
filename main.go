@@ -163,11 +163,7 @@ func CheckProducts(files []string, url string) {
 
 func CheckProduct(filename string, api *ClientWithResponses) {
 	hash, _ := HashFile(filename)
-	res, err := api.SearchHashV1WithResponse(context.Background(),
-		EncodeHash(hash),
-		&SearchHashV1Params{
-			Filehash: EncodeHash(hash),
-		})
+	res, err := api.SearchHashV1WithResponse(context.Background(), EncodeHash(hash))
 	if err != nil {
 		log.Fatalf("Unable to call to API endpoint: %s", err)
 	}

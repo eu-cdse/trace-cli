@@ -115,11 +115,6 @@ type ValidationError_Loc_Item struct {
 // PutTracesV1JSONBody defines parameters for PutTracesV1.
 type PutTracesV1JSONBody = []Trace
 
-// SearchHashV1Params defines parameters for SearchHashV1.
-type SearchHashV1Params struct {
-	Filehash string `form:"filehash" json:"filehash"`
-}
-
 // ValidateProductParams defines parameters for ValidateProduct.
 type ValidateProductParams struct {
 	Filehash string `form:"filehash" json:"filehash"`
@@ -272,7 +267,7 @@ type ClientInterface interface {
 	PutTracesV1(ctx context.Context, body PutTracesV1JSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SearchHashV1 request
-	SearchHashV1(ctx context.Context, hash string, params *SearchHashV1Params, reqEditors ...RequestEditorFn) (*http.Response, error)
+	SearchHashV1(ctx context.Context, hash string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetTraceV1 request
 	GetTraceV1(ctx context.Context, productname string, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -317,8 +312,8 @@ func (c *Client) PutTracesV1(ctx context.Context, body PutTracesV1JSONRequestBod
 	return c.Client.Do(req)
 }
 
-func (c *Client) SearchHashV1(ctx context.Context, hash string, params *SearchHashV1Params, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewSearchHashV1Request(c.Server, hash, params)
+func (c *Client) SearchHashV1(ctx context.Context, hash string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchHashV1Request(c.Server, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +416,7 @@ func NewPutTracesV1RequestWithBody(server string, contentType string, body io.Re
 }
 
 // NewSearchHashV1Request generates requests for SearchHashV1
-func NewSearchHashV1Request(server string, hash string, params *SearchHashV1Params) (*http.Request, error) {
+func NewSearchHashV1Request(server string, hash string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -445,22 +440,6 @@ func NewSearchHashV1Request(server string, hash string, params *SearchHashV1Para
 	if err != nil {
 		return nil, err
 	}
-
-	queryValues := queryURL.Query()
-
-	if queryFrag, err := runtime.StyleParamWithLocation("form", true, "filehash", runtime.ParamLocationQuery, params.Filehash); err != nil {
-		return nil, err
-	} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
-		return nil, err
-	} else {
-		for k, v := range parsed {
-			for _, v2 := range v {
-				queryValues.Add(k, v2)
-			}
-		}
-	}
-
-	queryURL.RawQuery = queryValues.Encode()
 
 	req, err := http.NewRequest("GET", queryURL.String(), nil)
 	if err != nil {
@@ -606,7 +585,7 @@ type ClientWithResponsesInterface interface {
 	PutTracesV1WithResponse(ctx context.Context, body PutTracesV1JSONRequestBody, reqEditors ...RequestEditorFn) (*PutTracesV1Response, error)
 
 	// SearchHashV1 request
-	SearchHashV1WithResponse(ctx context.Context, hash string, params *SearchHashV1Params, reqEditors ...RequestEditorFn) (*SearchHashV1Response, error)
+	SearchHashV1WithResponse(ctx context.Context, hash string, reqEditors ...RequestEditorFn) (*SearchHashV1Response, error)
 
 	// GetTraceV1 request
 	GetTraceV1WithResponse(ctx context.Context, productname string, reqEditors ...RequestEditorFn) (*GetTraceV1Response, error)
@@ -756,8 +735,8 @@ func (c *ClientWithResponses) PutTracesV1WithResponse(ctx context.Context, body 
 }
 
 // SearchHashV1WithResponse request returning *SearchHashV1Response
-func (c *ClientWithResponses) SearchHashV1WithResponse(ctx context.Context, hash string, params *SearchHashV1Params, reqEditors ...RequestEditorFn) (*SearchHashV1Response, error) {
-	rsp, err := c.SearchHashV1(ctx, hash, params, reqEditors...)
+func (c *ClientWithResponses) SearchHashV1WithResponse(ctx context.Context, hash string, reqEditors ...RequestEditorFn) (*SearchHashV1Response, error) {
+	rsp, err := c.SearchHashV1(ctx, hash, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -943,41 +922,40 @@ func ParseValidateProductResponse(rsp *http.Response) (*ValidateProductResponse,
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
