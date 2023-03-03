@@ -187,6 +187,6 @@ func RegisterTraces(traces []Trace, url string) error {
 		} else {
 			return fmt.Errorf("Registration failed: %s", registration.Message)
 		}
-	} 
+	}
 	return fmt.Errorf("Invalid response from service: %s", res.Status())
 }

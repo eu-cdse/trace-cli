@@ -30,6 +30,10 @@ const (
 	STATUS           = "STATUS"
 )
 
+func (cmd Command) RequiresArgs() bool {
+	return cmd != STATUS
+}
+
 func PrintUsageAndExit() {
 	fmt.Printf(`
 Usage:
@@ -85,7 +89,7 @@ func main() {
 		PrintUsageAndExit()
 	}
 	command := Command(strings.ToUpper(command_args[0]))
-	if len(command_args) < 2 && command != STATUS {
+	if command.RequiresArgs() && len(command_args) < 2 {
 		log.Error("No files provided for which traces should be generated/checked.")
 		PrintUsageAndExit()
 	}
@@ -176,6 +180,7 @@ func (a Algorithm) Validate() Algorithm {
 	log.Info("Using hash algorithm ", a)
 	return a
 }
+
 func ValidateIncludePattern(pattern string) glob.Glob {
 	return glob.MustCompile(pattern)
 }
