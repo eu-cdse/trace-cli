@@ -153,28 +153,6 @@ HQwbNI9699O2uJopIg/zPGN/Yfixptbj5g==
 	}
 }
 
-func TestSignVerifyED25519(t *testing.T) {
-	text := strings.Repeat("abc123", 100)
-	private_key, err := DecodePrivateKey([]byte(`
------BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEIGFjjHNiZUz59/SWF1NKLhlAshSBe038g1uDtD8scDUT
------END PRIVATE KEY-----
-	`))
-	ExpectNoErr(err, t)
-
-	algorithm, signature, public_bytes := Sign([]byte(text), private_key)
-
-	if algorithm != "ED25519-SHA512" {
-		t.Errorf("Signature algorithm unexpected: %s", algorithm)
-	}
-
-	valid := VerifySignature([]byte(text), signature, public_bytes, algorithm)
-
-	if !valid {
-		t.Fatalf("Signature validation failed.")
-	}
-}
-
 func TestSignRSARaw(t *testing.T) {
 	key, err := DecodePrivateKey([]byte(`
 -----BEGIN RSA PRIVATE KEY-----

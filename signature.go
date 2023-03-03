@@ -8,7 +8,6 @@ package main
 import (
 	"crypto"
 	"crypto/ecdsa"
-	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -41,10 +40,6 @@ func Sign(data []byte, key any) (string, []byte, []byte) {
 	case *ecdsa.PrivateKey:
 		algorithm = "ECDSA-SHA256"
 		signature, sign_err = key.Sign(rand.Reader, digest, crypto.SHA256)
-		public, key_err = x509.MarshalPKIXPublicKey(key.Public())
-	case ed25519.PrivateKey:
-		algorithm = "ED25519-SHA512" // ED25519 requires SHA512 and does it itself
-		signature, sign_err = key.Sign(rand.Reader, data, crypto.Hash(0))
 		public, key_err = x509.MarshalPKIXPublicKey(key.Public())
 	default:
 		log.Fatal("unknown type of private key")
@@ -85,8 +80,6 @@ func VerifySignature(data []byte, signature []byte, public_key []byte, algorithm
 	switch hash_alg {
 	case SHA256:
 		hash = crypto.SHA256
-	case Algorithm("SHA512"):
-		hash = crypto.SHA512
 	default:
 		log.Errorf("Invalid hash used for signature: %s", hash_alg)
 		return false
@@ -108,9 +101,6 @@ func VerifySignature(data []byte, signature []byte, public_key []byte, algorithm
 	case *ecdsa.PublicKey:
 		key_type = "ECDSA"
 		verify = ecdsa.VerifyASN1(key, digest, signature)
-	case ed25519.PublicKey:
-		key_type = "ED25519"
-		verify = ed25519.Verify(key, data, signature)
 	default:
 		log.Errorf("Invalid type of signture key: %s", sig_alg[0])
 		return false
