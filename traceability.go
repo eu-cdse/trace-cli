@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -119,6 +120,11 @@ func CheckProduct(filename string, api *ClientWithResponses) (bool, error) {
 	} else {
 		fmt.Printf("%s %s\tfound %d traces:\n", EncodeHash(hash), filename, len(*traces))
 		var success = false
+
+		sort.Slice(*traces, func(i, j int) bool {
+			return (*traces)[i].Timestamp.Before((*traces)[j].Timestamp)
+		})
+
 		for _, t := range *traces {
 			check, status := ValidateTrace(&t, hash, hash_function)
 
