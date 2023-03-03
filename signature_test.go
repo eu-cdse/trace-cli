@@ -65,7 +65,9 @@ Ch//nM3xlDNXTWatDiWIMl1UgfYZr5mmuZwapFhh/4tOTRc4jUPEdHwCLXeHyfu9
 ngdLdL7SUBqcJSbvt2zXUhBE2R5do1QwDHzXsqWf/MGNOytPQAB8ZiQ2Gzg+zlE=
 -----END ENCRYPTED PRIVATE KEY-----
 `
-	_, err := DecodePrivateKey([]byte(pemfile), "abc123")
+	_, err := DecodePrivateKey([]byte(pemfile), func() string {
+		return "abc123"
+	})
 	ExpectNoErr(err, t, "Decoding private key: ")
 
 }

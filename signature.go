@@ -65,7 +65,7 @@ func VerifySignature(data []byte, signature []byte, public_key []byte, algorithm
 
 	key, key_err := DecodePublicKey(public_key)
 	if key_err != nil {
-		log.Errorf("Unable to parse key")
+		log.Errorf("Unable to decode signature key: %v", key_err)
 		return false
 	}
 
@@ -115,7 +115,7 @@ func VerifySignature(data []byte, signature []byte, public_key []byte, algorithm
 	return verify
 }
 
-func DecodePrivateKey(data []byte, password ...string) (any, error) {
+func DecodePrivateKey(data []byte, password ...func() string) (any, error) {
 	block, _ := pem.Decode(data)
 	if block == nil {
 		return nil, fmt.Errorf("Failed to decode PEM block of the private key.")
@@ -133,9 +133,11 @@ func DecodePrivateKey(data []byte, password ...string) (any, error) {
 	case "ENCRYPTED PRIVATE KEY":
 		var pass = []byte{}
 		if len(password) > 0 {
-			pass = []byte(password[0])
+			pass = []byte(password[0]())
 		}
 		if len(pass) == 0 {
+			// this is currently a bug in pkcs8 lib.
+			// golang pkcs8 can't handle encrpytion at all.
 			return nil, fmt.Errorf("Encrypted private keys must have a non-empty password.")
 		}
 

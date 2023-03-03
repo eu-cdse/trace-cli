@@ -12,6 +12,7 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20201027041543-1326539a0a0a
 	github.com/zeebo/blake3 v0.2.3
 	golang.org/x/crypto v0.5.0
+	golang.org/x/term v0.4.0
 )
 
 require (

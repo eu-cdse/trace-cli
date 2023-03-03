@@ -19,6 +19,7 @@ import (
 	"github.com/gobwas/glob"
 	"github.com/rsc/getopt"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/term"
 )
 
 type Command string
@@ -194,7 +195,17 @@ func ValidateCertFile(certfile string) any {
 		log.Fatalf("Unable to read PEM file holding the private key for signing from '%s': %s", certfile, err.Error())
 	}
 
-	key, err := DecodePrivateKey(key_bytes)
+	stdin_pass := func() string {
+		fmt.Print("Please enter password for private key: ")
+		pass, err := term.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			log.Fatalf("Unable to read password: %v", err)
+		}
+		fmt.Println()
+		return string(pass)
+	}
+
+	key, err := DecodePrivateKey(key_bytes, stdin_pass)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
