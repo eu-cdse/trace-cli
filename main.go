@@ -10,7 +10,6 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -31,7 +30,7 @@ const (
 	STATUS           = "STATUS"
 )
 
-func PrintUsage() {
+func PrintUsageAndExit() {
 	fmt.Printf(`
 Usage:
   %s [OPTION...] COMMAND FILE...
@@ -44,6 +43,7 @@ Available Commands:
 Available Options:
 `, os.Args[0])
 	getopt.PrintDefaults()
+	os.Exit(1)
 }
 
 // FIXME remove global, make argument
@@ -82,55 +82,64 @@ func main() {
 	command_args := flag.Args()
 	if len(command_args) < 1 {
 		log.Error("No command provided.")
-		PrintUsage()
-		return
+		PrintUsageAndExit()
 	}
-	if len(command_args) < 2 {
+	command := Command(strings.ToUpper(command_args[0]))
+	if len(command_args) < 2 && command != STATUS {
 		log.Error("No files provided for which traces should be generated/checked.")
-		PrintUsage()
-		return
+		PrintUsageAndExit()
 	}
 
 	files := command_args[1:]
 
-	switch Command(strings.ToUpper(command_args[0])) {
+	var err error
+	switch command {
 	case CHECK:
-		check := CheckProducts(files, *url)
+		var check bool
+		check, err = CheckProducts(files, *url)
 		if !check {
 			log.Error("Not all products could be validated successfully.")
 			os.Exit(1)
 		}
 	case PRINT:
 		traces := CreateProductInfos(files, include_pattern, trace_event, private_key)
-		traces_json, _ := json.MarshalIndent(traces, "", "\t")
-		fmt.Printf("%s\n", traces_json)
+		fmt.Printf("%s\n", FormatTraces(&traces))
 	case REGISTER:
 		traces := CreateProductInfos(files, include_pattern, trace_event, private_key)
-		RegisterTraces(traces, *url)
+		err = RegisterTraces(traces, *url)
+		if err != nil {
+			log.Warn("Traces could not be registered, dumping for recovery.")
+			fmt.Printf("%s\n", FormatTraces(&traces))
+		}
 	case STATUS:
-		CheckStatus(*url)
+		err = CheckStatus(*url)
 	default:
 		log.Errorf("Unknown command '%s'.\n", command_args[0])
-		PrintUsage()
-		return
+		PrintUsageAndExit()
+	}
+
+	if err != nil {
+		log.Errorf("%v", err)
+		os.Exit(1)
 	}
 }
 
-func CheckStatus(url string) {
+func CheckStatus(url string) error {
 	log.Infof("Checking API endpoint at %s", url)
 
 	api := CreateClient(url)
 
 	res, err := api.PingStatusGetWithResponse(context.Background())
 	if err != nil {
-		log.Fatalf("Unable to call to API endpoint: %s", err)
+		return fmt.Errorf("Unable to call API endpoint: %v", err)
 	}
 
 	if res.JSON200 != nil {
 		log.Println("Service response:", *res.JSON200)
-	} else {
-		log.Errorf("Invalid response from service: %s", res.Status())
+		return nil
 	}
+
+	return fmt.Errorf("Invalid response from service: %s", res.Status())
 }
 
 func CreateClient(url string) *ClientWithResponses {
@@ -180,6 +189,9 @@ func ValidateCertFile(certfile string) any {
 		log.Fatalf("Unable to read PEM file holding the private key for signing from '%s': %s", certfile, err.Error())
 	}
 
-	key := DecodePrivateKey(key_bytes)
+	key, err := DecodePrivateKey(key_bytes)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
 	return key
 }

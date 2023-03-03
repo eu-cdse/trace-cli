@@ -13,6 +13,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"strings"
 
 	"github.com/youmark/pkcs8"
@@ -124,16 +125,19 @@ func VerifySignature(data []byte, signature []byte, public_key []byte, algorithm
 	return verify
 }
 
-func DecodePrivateKey(data []byte, password ...string) any {
+func DecodePrivateKey(data []byte, password ...string) (any, error) {
 	block, _ := pem.Decode(data)
 	if block == nil {
-		log.Fatalf("Failed to decode PEM block of the private key.")
+		return nil, fmt.Errorf("Failed to decode PEM block of the private key.")
 	}
 	if x509.IsEncryptedPEMBlock(block) {
-		log.Fatal("PEM Encryption is not supported, please use PKCS8 instead.")
+		return nil, fmt.Errorf("PEM Encryption is not supported, please use PKCS8 instead.")
 	}
 
 	key_bytes := block.Bytes
+
+	var key any
+	var err error
 
 	switch block.Type {
 	case "ENCRYPTED PRIVATE KEY":
@@ -142,36 +146,32 @@ func DecodePrivateKey(data []byte, password ...string) any {
 			pass = []byte(password[0])
 		}
 		if len(pass) == 0 {
-			log.Fatalf("Encrypted private keys must have a non-empty password.")
+			return nil, fmt.Errorf("Encrypted private keys must have a non-empty password.")
 		}
 
-		key, err := pkcs8.ParsePKCS8PrivateKey(key_bytes, pass)
+		key, err = pkcs8.ParsePKCS8PrivateKey(key_bytes, pass)
 		if err != nil {
-			log.Fatal("Failed to parse encrypted PK8 key: " + err.Error())
+			return nil, fmt.Errorf("Failed to parse encrypted PK8 key: %v", err)
 		}
-		return key
 	case "PRIVATE KEY":
-		key, err := x509.ParsePKCS8PrivateKey(key_bytes)
+		key, err = x509.ParsePKCS8PrivateKey(key_bytes)
 		if err != nil {
-			log.Fatal("Failed to parse PK8 key: " + err.Error())
+			return nil, fmt.Errorf("Failed to parse PK8 key: %v", err)
 		}
-		return key
 	case "EC PRIVATE KEY":
-		key, err := x509.ParseECPrivateKey(key_bytes)
+		key, err = x509.ParseECPrivateKey(key_bytes)
 		if err != nil {
-			log.Fatal("Failed to parse EC key: " + err.Error())
+			return nil, fmt.Errorf("Failed to parse EC key: %v", err)
 		}
-		return key
 	case "RSA PRIVATE KEY":
-		key, err := x509.ParsePKCS1PrivateKey(key_bytes)
+		key, err = x509.ParsePKCS1PrivateKey(key_bytes)
 		if err != nil {
-			log.Fatal("Failed to parse RSA key: " + err.Error())
+			return nil, fmt.Errorf("Failed to parse RSA key: %v", err)
 		}
-		return key
 	default:
-		log.Fatalf("Invalid private key supplied: %s", block.Type)
+		return nil, fmt.Errorf("Invalid private key supplied: %s", block.Type)
 	}
-	return nil
+	return key, err
 }
 
 func DecodePublicKey(public_key []byte) (any, error) {

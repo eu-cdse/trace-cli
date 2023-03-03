@@ -32,13 +32,14 @@ func TestCheckTraceUnsigned(t *testing.T) {
 }
 
 func TestCheckTraceSigned(t *testing.T) {
-	private_key := DecodePrivateKey([]byte(`
+	private_key, err := DecodePrivateKey([]byte(`
 -----BEGIN EC PRIVATE KEY-----
 MHcCAQEEICXy35r0cy6uTDxIRQZZe/cqM8OwtxEWKcB3Xu1GXAXWoAoGCCqGSM49
 AwEHoUQDQgAE0side0BK3IFRbv2c7Ay0jRxI8lg/bc3YjmFzCeiD89aVlLtyqrsh
 HQwbNI9699O2uJopIg/zPGN/Yfixptbj5g==
 -----END EC PRIVATE KEY-----
 	`))
+	ExpectNoErr(err, t, "Decoding private key: ")
 	product := Product{
 		Hash: "abcd",
 	}
@@ -48,7 +49,8 @@ HQwbNI9699O2uJopIg/zPGN/Yfixptbj5g==
 		Signature:     CreateSignature(&product, private_key),
 	}
 
-	hash_bytes, _ := DecodeHash("abcd")
+	hash_bytes, err := DecodeHash("abcd")
+	ExpectNoErr(err, t, "Decoding Hash: ")
 	status, message := ValidateTrace(&trace, hash_bytes, SHA256)
 	expectEqual(true, status, t)
 	expectEqual("OK", message, t)
@@ -62,7 +64,8 @@ func TestCheckTraceAlgorithmMismatch(t *testing.T) {
 		HashAlgorithm: "SHA256",
 	}
 
-	hash_bytes, _ := DecodeHash("abcd")
+	hash_bytes, err := DecodeHash("abcd")
+	ExpectNoErr(err, t, "Decoding Hash: ")
 	status, message := ValidateTrace(&trace, hash_bytes, SHA3)
 	expectEqual(false, status, t)
 	expectPrefix("FAIL", message, t)
@@ -76,7 +79,8 @@ func TestCheckTraceChecksumMismatch(t *testing.T) {
 		HashAlgorithm: "SHA256",
 	}
 
-	hash_bytes, _ := DecodeHash("fefe")
+	hash_bytes, err := DecodeHash("fefe")
+	ExpectNoErr(err, t, "Decoding Hash: ")
 	status, message := ValidateTrace(&trace, hash_bytes, SHA256)
 	expectEqual(false, status, t)
 	expectPrefix("FAIL", message, t)
@@ -100,7 +104,8 @@ func TestCheckTraceChecksumContent(t *testing.T) {
 		HashAlgorithm: "SHA256",
 	}
 
-	hash_bytes, _ := DecodeHash("fefe")
+	hash_bytes, err := DecodeHash("fefe")
+	ExpectNoErr(err, t, "Decoding Hash: ")
 	status, message := ValidateTrace(&trace, hash_bytes, SHA256)
 	expectPrefix("OK", message, t)
 	expectEqual(true, status, t)

@@ -78,43 +78,42 @@ func CreateSignatureContents(p *Product) []byte {
 	return data
 }
 
-func CheckProducts(files []string, url string) bool {
+func FormatTraces(traces *[]Trace) string {
+	traces_json, _ := json.MarshalIndent(traces, "", "\t")
+	return string(traces_json)
+}
+
+func CheckProducts(files []string, url string) (bool, error) {
 	log.WithFields(log.Fields{"files": files}).Infof("Checking traces for %d product(s)...", len(files))
 	api := CreateClient(url)
 
 	var success = true
 
 	for _, filename := range files {
-		check := CheckProduct(filename, api)
+		check, err := CheckProduct(filename, api)
+		if err != nil {
+			return false, err
+		}
 		success = success && check // all products need to have a valid trace
 	}
-
-	return success
+	return success, nil
 }
 
-func CheckProduct(filename string, api *ClientWithResponses) bool {
+func CheckProduct(filename string, api *ClientWithResponses) (bool, error) {
 	hash, _ := HashFile(filename)
 	res, err := api.SearchHashV1WithResponse(context.Background(), EncodeHash(hash))
 	if err != nil {
-		log.Fatalf("Unable to call to API endpoint: %s", err)
+		return false, fmt.Errorf("Unable to call API endpoint: %v", err)
 	}
 
 	if res.JSON200 == nil {
 		if res.StatusCode() == 404 {
 			log.Errorf("No traces found for %s %s: %s\n", filename, EncodeHash(hash), string(res.Body))
-			return false
+			return false, nil
 		}
-		log.Fatalf("Invalid response from service: %s\n%s", res.Status(), string(res.Body))
+		return false, fmt.Errorf("Invalid response from service: %s\n%s", res.Status(), string(res.Body))
 	}
-	traces := res.JSON200
-	// traces := &[]Trace{
-	// 	CreateProductInfos([]string{filename}, glob.MustCompile("x"), CREATE)[0],
-	// 	CreateProductInfos([]string{filename}, glob.MustCompile("x"), COPY)[0],
-	// 	CreateProductInfos([]string{filename}, glob.MustCompile("x"), COPY)[0],
-	// 	CreateProductInfos([]string{filename}, glob.MustCompile("x"), DELETE)[0],
-	// }
-
-	if traces == nil || len(*traces) == 0 {
+	if traces := res.JSON200; traces == nil || len(*traces) == 0 {
 		fmt.Printf("%s %s\tno traces found for checksum!\n", EncodeHash(hash), filename)
 		//TODO also try other hash algorithms
 	} else {
@@ -132,9 +131,9 @@ func CheckProduct(filename string, api *ClientWithResponses) bool {
 
 			success = check || success // any trace match is considered success
 		}
-		return success
+		return success, nil
 	}
-	return false
+	return false, nil
 }
 
 func ValidateTrace(t *Trace, hash []byte, hash_func Algorithm) (bool, string) {
@@ -172,22 +171,22 @@ func ContentChecksumMatch(contents *[]Content, checksum string) bool {
 	return false
 }
 
-func RegisterTraces(traces []Trace, url string) {
+func RegisterTraces(traces []Trace, url string) error {
 	api := CreateClient(url)
 
 	res, err := api.PutTracesV1WithResponse(context.Background(), traces)
 	if err != nil {
-		log.Fatalf("Unable to call to API endpoint: %s", err)
+		return fmt.Errorf("Unable to call API endpoint: %v", err)
 	}
 
 	registration := res.JSON201
 	if registration != nil {
 		if registration.Success {
 			log.Infof("Registration successful: %s", registration.Message)
+			return nil
 		} else {
-			log.Errorf("Registration failed: %s", registration.Message)
+			return fmt.Errorf("Registration failed: %s", registration.Message)
 		}
-	} else {
-		log.Errorf("Invalid response from service: %s", res.Status())
-	}
+	} 
+	return fmt.Errorf("Invalid response from service: %s", res.Status())
 }
