@@ -19,11 +19,15 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func CreateProductInfos(files []string, include_pattern glob.Glob, event TraceEvent, key any) []Trace {
+func CreateProductTraces(files []string, name *string, include_pattern glob.Glob, event TraceEvent, key any) []Trace {
 	log.WithFields(log.Fields{"files": files}).Infof("Creating traces for %d product(s)...", len(files))
+	if name != nil && len(files) > 1 {
+		log.Warn("Product name was specified, but traces for multiple products were requested; the specified product name will be ignored.")
+		name = nil
+	}
 	traces := make([]Trace, len(files))
 	for i, filename := range files {
-		p := CreateProductInfo(filename, include_pattern)
+		p := CreateProductInfo(filename, name, include_pattern)
 		host, _ := os.Hostname()
 		traces[i] = Trace{
 			Event:         event,
@@ -36,12 +40,18 @@ func CreateProductInfos(files []string, include_pattern glob.Glob, event TraceEv
 	}
 	return traces
 }
-func CreateProductInfo(filename string, include_pattern glob.Glob) Product {
+func CreateProductInfo(filename string, name *string, include_pattern glob.Glob) Product {
 	hash, size := HashFile(filename)
+	var product_name string
+	if name != nil && len(*name) > 0 {
+		product_name = *name
+	} else {
+		product_name = filepath.Base(filename)
+	}
 	var p = Product{
 		Contents: &[]Content{}, //FIXME: necessary to align signature rn, should be nil
 		Inputs:   &[]Input{},   //FIXME: necessary to align signature rn, should be nil
-		Name:     filepath.Base(filename),
+		Name:     product_name,
 		Hash:     EncodeHash(hash),
 		Size:     int(size),
 	}

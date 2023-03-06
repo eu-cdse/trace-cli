@@ -110,3 +110,30 @@ func TestCheckTraceChecksumContent(t *testing.T) {
 	expectPrefix("OK", message, t)
 	expectEqual(true, status, t)
 }
+
+func TestTraceName(t *testing.T) {
+	name := "asdf"
+	traces := CreateProductTraces([]string{"test-data/test1.bin"}, &name, ValidateIncludePattern(""), COPY, nil)
+	expectEqual(1, len(traces), t)
+	expectEqual("asdf", traces[0].Product.Name, t)
+}
+
+func TestTraceNameDefault(t *testing.T) {
+	name := ""
+	traces := CreateProductTraces([]string{"test-data/test1.bin"}, &name, ValidateIncludePattern(""), COPY, nil)
+	expectEqual(1, len(traces), t)
+	expectEqual("test1.bin", traces[0].Product.Name, t)
+
+	traces = CreateProductTraces([]string{"test-data/test1.bin"}, nil, ValidateIncludePattern(""), COPY, nil)
+	expectEqual(1, len(traces), t)
+	expectEqual("test1.bin", traces[0].Product.Name, t)
+
+}
+
+func TestTraceNameOverride(t *testing.T) {
+	name := "asdf"
+	traces := CreateProductTraces([]string{"test-data/test1.bin", "test-data/test2.bin"}, &name, ValidateIncludePattern(""), COPY, nil)
+	expectEqual(2, len(traces), t)
+	expectEqual("test1.bin", traces[0].Product.Name, t)
+	expectEqual("test2.bin", traces[1].Product.Name, t)
+}

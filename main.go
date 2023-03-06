@@ -62,6 +62,7 @@ func main() {
 	url := flag.String("url", "https://64.225.133.55.nip.io/", "The address to the traceabilty service API endpoint.")
 	event := flag.String("event", "CREATE", "The trace event, can be any of the following: CREATE, COPY, DELETE.")
 	include_glob := flag.String("include", "*", "A glob pattern defining the elements within an archive to include.")
+	name := flag.String("name", "", "The product name for which the trace is generated. Default is the filename.")
 	verbose := flag.Bool("verbose", true, "Turn on verbose output.")
 	debug := flag.Bool("debug", false, "Turn on debugging output.")
 
@@ -107,10 +108,10 @@ func main() {
 			os.Exit(1)
 		}
 	case PRINT:
-		traces := CreateProductInfos(files, include_pattern, trace_event, private_key)
+		traces := CreateProductTraces(files, name, include_pattern, trace_event, private_key)
 		fmt.Printf("%s\n", FormatTraces(&traces))
 	case REGISTER:
-		traces := CreateProductInfos(files, include_pattern, trace_event, private_key)
+		traces := CreateProductTraces(files, name, include_pattern, trace_event, private_key)
 		err = RegisterTraces(traces, *url)
 		if err != nil {
 			log.Warn("Traces could not be registered, dumping for recovery.")
