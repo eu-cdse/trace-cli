@@ -62,7 +62,8 @@ func main() {
 	url := flag.String("url", "https://64.225.133.55.nip.io/", "The address to the traceabilty service API endpoint.")
 	event := flag.String("event", "CREATE", "The trace event, can be any of the following: CREATE, COPY, DELETE.")
 	include_glob := flag.String("include", "*", "A glob pattern defining the elements within an archive to include.")
-	name := flag.String("name", "", "The product name for which the trace is generated. Default is the filename.")
+	name := flag.String("name", "", "The product name for which the trace is generated. (default is the filename)")
+	input_str := flag.String("input", "", "The input products based on which the product has been generated, as comma-separated pairs of NAME:HASH tuples.")
 	verbose := flag.Bool("verbose", true, "Turn on verbose output.")
 	debug := flag.Bool("debug", false, "Turn on debugging output.")
 
@@ -83,6 +84,7 @@ func main() {
 	trace_event := TraceEvent(strings.ToUpper(*event)).Validate()
 	hash_function = Algorithm(strings.ToUpper(*hash_func)).Validate()
 	include_pattern := ValidateIncludePattern(*include_glob)
+	inputs := ValidateInputs(input_str)
 	private_key := ValidateCertFile(*cert_file)
 
 	command_args := flag.Args()
@@ -108,10 +110,10 @@ func main() {
 			os.Exit(1)
 		}
 	case PRINT:
-		traces := CreateProductTraces(files, name, include_pattern, trace_event, private_key)
+		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, private_key)
 		fmt.Printf("%s\n", FormatTraces(&traces))
 	case REGISTER:
-		traces := CreateProductTraces(files, name, include_pattern, trace_event, private_key)
+		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, private_key)
 		err = RegisterTraces(traces, *url)
 		if err != nil {
 			log.Warn("Traces could not be registered, dumping for recovery.")
@@ -211,4 +213,24 @@ func ValidateCertFile(certfile string) any {
 		log.Fatalf("%v", err)
 	}
 	return key
+}
+
+func ValidateInputs(input_string *string) *[]Input {
+	if input_string == nil {
+		return nil
+	} else if len(*input_string) == 0 {
+		return &[]Input{}
+	}
+	tuples := strings.Split(*input_string, ",")
+	inputs := make([]Input, len(tuples))
+	for i, tuple := range tuples {
+		parts := strings.Split(tuple, ":")
+		if len(parts) != 2 {
+			log.Fatalf("Invalid inputs string, expect a comma-separated list of NAME:HASH pairs, but got '%v'. Problem at: %v",
+				*input_string, parts)
+		}
+		inputs[i].ProductName = parts[0]
+		inputs[i].Hash = parts[1]
+	}
+	return &inputs
 }

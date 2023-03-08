@@ -5,9 +5,19 @@ import (
 	"testing"
 )
 
-func expectEqual(expected any, actual any, t *testing.T) {
+func expectEqual[T comparable](expected T, actual T, t *testing.T) {
 	if actual != expected {
 		t.Fatalf("Results don't match. Expected '%v', Actual '%v'", expected, actual)
+	}
+}
+func expectArrayEqual[T comparable](expected []T, actual []T, t *testing.T) {
+	if len(actual) != len(expected) {
+		t.Fatalf("Results don't match. Expected '%v', Actual '%v'", expected, actual)
+	}
+	for i, _ := range expected {
+		if actual[i] != expected[i] {
+			t.Fatalf("Results don't match. Expected '%v', Actual '%v'", expected, actual)
+		}
 	}
 }
 
@@ -113,18 +123,18 @@ func TestCheckTraceChecksumContent(t *testing.T) {
 
 func TestTraceName(t *testing.T) {
 	name := "asdf"
-	traces := CreateProductTraces([]string{"test-data/test1.bin"}, &name, ValidateIncludePattern(""), COPY, nil)
+	traces := CreateProductTraces([]string{"test-data/test1.bin"}, &name, ValidateIncludePattern(""), nil, COPY, nil)
 	expectEqual(1, len(traces), t)
 	expectEqual("asdf", traces[0].Product.Name, t)
 }
 
 func TestTraceNameDefault(t *testing.T) {
 	name := ""
-	traces := CreateProductTraces([]string{"test-data/test1.bin"}, &name, ValidateIncludePattern(""), COPY, nil)
+	traces := CreateProductTraces([]string{"test-data/test1.bin"}, &name, ValidateIncludePattern(""), nil, COPY, nil)
 	expectEqual(1, len(traces), t)
 	expectEqual("test1.bin", traces[0].Product.Name, t)
 
-	traces = CreateProductTraces([]string{"test-data/test1.bin"}, nil, ValidateIncludePattern(""), COPY, nil)
+	traces = CreateProductTraces([]string{"test-data/test1.bin"}, nil, ValidateIncludePattern(""), nil, COPY, nil)
 	expectEqual(1, len(traces), t)
 	expectEqual("test1.bin", traces[0].Product.Name, t)
 
@@ -132,8 +142,27 @@ func TestTraceNameDefault(t *testing.T) {
 
 func TestTraceNameOverride(t *testing.T) {
 	name := "asdf"
-	traces := CreateProductTraces([]string{"test-data/test1.bin", "test-data/test2.bin"}, &name, ValidateIncludePattern(""), COPY, nil)
+	traces := CreateProductTraces([]string{"test-data/test1.bin", "test-data/test2.bin"}, &name, ValidateIncludePattern(""), nil, COPY, nil)
 	expectEqual(2, len(traces), t)
 	expectEqual("test1.bin", traces[0].Product.Name, t)
 	expectEqual("test2.bin", traces[1].Product.Name, t)
+}
+
+func TestTraceInputs(t *testing.T) {
+	inputs := []Input{
+		Input{
+			ProductName: "abc",
+			Hash:        "010203",
+		},
+		Input{
+			ProductName: "def",
+			Hash:        "040506",
+		},
+	}
+	traces := CreateProductTraces([]string{"test-data/test1.bin", "test-data/test2.bin"}, nil, ValidateIncludePattern(""),
+		&inputs, COPY, nil)
+	expectEqual(2, len(traces), t)
+	// inputs are used for all products
+	expectArrayEqual(inputs, *traces[0].Product.Inputs, t)
+	expectArrayEqual(inputs, *traces[1].Product.Inputs, t)
 }
