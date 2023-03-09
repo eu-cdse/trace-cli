@@ -70,6 +70,7 @@ func main() {
 	cert_file := flag.String("cert", "", "The path to the PEM file holding the private key.")
 	url := flag.String("url", "https://64.225.133.55.nip.io/", "The address to the traceabilty service API endpoint.")
 	event := flag.String("event", "CREATE", "The trace event, can be any of the following: CREATE, COPY, DELETE.")
+	obsolete := flag.String("obsolete", "", "Creates an OBSOLETE trace with the given reason for the products.")
 	include_glob := flag.String("include", "*", "A glob pattern defining the elements within an archive to include.")
 	name := flag.String("name", "", "The product name for which the trace is generated. (default is the filename)")
 	input_str := flag.String("input", "", "The input products based on which the product has been generated, as comma-separated pairs of NAME:HASH tuples.")
@@ -96,6 +97,11 @@ func main() {
 	include_pattern := ValidateIncludePattern(*include_glob)
 	inputs := ValidateInputs(input_str)
 	private_key := ValidateCertFile(*cert_file)
+
+	if obsolete != nil && len(*obsolete) > 0 {
+		log.Infof("Marking products as OBSOLETE with reason '%s'", *obsolete)
+		trace_event = OBSOLETE
+	}
 
 	command_args := flag.Args()
 	if len(command_args) < 1 {
@@ -189,6 +195,8 @@ func CreateClient(url string) *ClientWithResponses {
 func (ev TraceEvent) Validate() TraceEvent {
 	switch ev {
 	case CREATE, COPY, DELETE:
+	case OBSOLETE:
+		log.Fatalf("Use --obsolete option to specifiy OBSOLETE traces.")
 	default:
 		log.Fatalf("Unknown trace event '%s'", ev)
 	}

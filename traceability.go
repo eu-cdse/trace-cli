@@ -9,7 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -19,22 +18,19 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func CreateProductTraces(files []string, name *string, include_pattern glob.Glob, inputs *[]Input, event TraceEvent, key any) []Trace {
+func CreateProductTraces(files []string, name *string, include_pattern glob.Glob, inputs *[]Input, event TraceEvent, key any) []RegisterTrace {
 	log.WithFields(log.Fields{"files": files}).Infof("Creating traces for %d product(s)...", len(files))
 	if name != nil && len(files) > 1 {
 		log.Warn("Product name was specified, but traces for multiple products were requested; the specified product name will be ignored.")
 		name = nil
 	}
-	traces := make([]Trace, len(files))
+	traces := make([]RegisterTrace, len(files))
 	for i, filename := range files {
 		p := CreateProductInfo(filename, name, include_pattern, inputs)
-		host, _ := os.Hostname()
-		traces[i] = Trace{
+		traces[i] = RegisterTrace{
 			Event:         event,
 			HashAlgorithm: string(hash_function),
 			Product:       p,
-			Timestamp:     time.Now(),
-			Origin:        host,
 			Signature:     CreateSignature(&p, key),
 		}
 	}
@@ -48,15 +44,16 @@ func CreateProductInfo(filename string, name *string, include_pattern glob.Glob,
 	} else {
 		product_name = filepath.Base(filename)
 	}
-	if inputs == nil {
-		inputs = &[]Input{} //FIXME: necessary to align signature rn, should be nil
-	}
+	// if inputs == nil {
+	// 	inputs = &[]Input{} //FIXME: necessary to align signature rn, should be nil
+	// }
 	var p = Product{
-		Contents: &[]Content{}, //FIXME: necessary to align signature rn, should be nil
-		Inputs:   inputs,
-		Name:     product_name,
-		Hash:     EncodeHash(hash),
-		Size:     int(size),
+		// Contents: &[]Content{}, //FIXME: necessary to align signature rn, should be nil
+		Inputs:            inputs,
+		Name:              product_name,
+		Hash:              EncodeHash(hash),
+		Size:              size,
+		CreationTimestamp: time.Now(),
 	}
 
 	if strings.HasSuffix(filename, ".zip") {
@@ -84,6 +81,7 @@ func CreateSignature(p *Product, key any) Signature {
 		Algorithm: algorithm,
 		PublicKey: EncodeHash(public_key),
 		Signature: EncodeHash(signature),
+		Message:   string(data),
 	}
 }
 
@@ -92,7 +90,7 @@ func CreateSignatureContents(p *Product) []byte {
 	return data
 }
 
-func FormatTraces(traces *[]Trace) string {
+func FormatTraces(traces *[]RegisterTrace) string {
 	traces_json, _ := json.MarshalIndent(traces, "", "\t")
 	return string(traces_json)
 }
@@ -114,6 +112,7 @@ func CheckProducts(files []string, url string) (bool, error) {
 }
 
 func CheckProduct(filename string, api *ClientWithResponses) (bool, error) {
+	log.Debugf("Checking traces for %s", filename)
 	hash, _ := HashFile(filename)
 	res, err := api.SearchHashV1WithResponse(context.Background(), EncodeHash(hash))
 	if err != nil {
@@ -135,14 +134,14 @@ func CheckProduct(filename string, api *ClientWithResponses) (bool, error) {
 		var success = false
 
 		sort.Slice(*traces, func(i, j int) bool {
-			return (*traces)[i].Timestamp.Before((*traces)[j].Timestamp)
+			return (*traces)[i].RegisterTimestamp.Before((*traces)[j].RegisterTimestamp)
 		})
 
 		for _, t := range *traces {
 			check, status := ValidateTrace(&t, hash, hash_function)
 
 			fmt.Printf("\t%s  %10s %20s  %-25s %s\n",
-				t.Timestamp.UTC().Format(time.RFC3339),
+				t.RegisterTimestamp.UTC().Format(time.RFC3339),
 				t.Event,
 				t.Origin,
 				status,
@@ -170,11 +169,14 @@ func ValidateTrace(t *Trace, hash []byte, hash_func Algorithm) (bool, string) {
 		// 	check = "FAIL (Filesize Mismatch)"
 	} else if len(t.Signature.Signature) == 0 {
 		return true, "OK (Unsigned)"
-	} else if sig_err != nil || key_err != nil ||
-		VerifySignature(CreateSignatureContents(&t.Product), sig, key,
-			t.Signature.Algorithm) == false {
+	} else if sig_err != nil || key_err != nil {
+		return false, "FAIL (Signature Decode)"
+	} else if !VerifySignature([]byte(t.Signature.Message), sig, key, t.Signature.Algorithm) {
 		return false, "FAIL (Signature Invalid)"
+	} else if !TraceSignatureMatch(t, t.Signature.Message) {
+		return false, "FAIL (Signature Mismatch)"
 	}
+
 	return true, "OK"
 }
 
@@ -190,7 +192,12 @@ func ContentChecksumMatch(contents *[]Content, checksum string) bool {
 	return false
 }
 
-func RegisterTraces(traces []Trace, url string) error {
+func TraceSignatureMatch(trace *Trace, signature string) bool {
+	// TODO implement
+	return true
+}
+
+func RegisterTraces(traces []RegisterTrace, url string) error {
 	api := CreateClient(url)
 
 	res, err := api.PutTracesV1WithResponse(context.Background(), traces)

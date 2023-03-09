@@ -23,9 +23,10 @@ import (
 
 // Defines values for TraceEvent.
 const (
-	COPY   TraceEvent = "COPY"
-	CREATE TraceEvent = "CREATE"
-	DELETE TraceEvent = "DELETE"
+	COPY     TraceEvent = "COPY"
+	CREATE   TraceEvent = "CREATE"
+	DELETE   TraceEvent = "DELETE"
+	OBSOLETE TraceEvent = "OBSOLETE"
 )
 
 // Content A product's content contains the path and the filehash
@@ -47,11 +48,21 @@ type Input struct {
 
 // Product A product is either a file itself, or a collection of files.
 type Product struct {
-	Contents *[]Content `json:"contents,omitempty"`
-	Hash     string     `json:"hash"`
-	Inputs   *[]Input   `json:"inputs,omitempty"`
-	Name     string     `json:"name"`
-	Size     int        `json:"size"`
+	Contents          *[]Content `json:"contents,omitempty"`
+	CreationTimestamp time.Time  `json:"creation_timestamp"`
+	Hash              string     `json:"hash"`
+	Inputs            *[]Input   `json:"inputs,omitempty"`
+	Name              string     `json:"name"`
+	Size              int64      `json:"size"`
+}
+
+// RegisterTrace A trace describes a specific event for a product used for validate incoming traces.
+type RegisterTrace struct {
+	Event               TraceEvent `json:"event"`
+	HashAlgorithm       string     `json:"hash_algorithm"`
+	ObsolescenceMessage *string    `json:"obsolescence_message,omitempty"`
+	Product             Product    `json:"product"`
+	Signature           Signature  `json:"signature"`
 }
 
 // Signature The trace signature can be used to verify a products integrity.
@@ -61,18 +72,21 @@ type Product struct {
 // compact JSON format (i.e. without whitespaces or linebreaks) and encoded in utf-8.
 type Signature struct {
 	Algorithm string `json:"algorithm"`
+	Message   string `json:"message"`
 	PublicKey string `json:"public_key"`
 	Signature string `json:"signature"`
 }
 
-// Trace A trace describes a specific event for a product at a specific origin.
+// Trace A trace describes a specific event for a product at a specific origin with primary id.
 type Trace struct {
-	Event         TraceEvent `json:"event"`
-	HashAlgorithm string     `json:"hash_algorithm"`
-	Origin        string     `json:"origin"`
-	Product       Product    `json:"product"`
-	Signature     Signature  `json:"signature"`
-	Timestamp     time.Time  `json:"timestamp"`
+	Event               TraceEvent `json:"event"`
+	HashAlgorithm       string     `json:"hash_algorithm"`
+	Id                  string     `json:"id"`
+	ObsolescenceMessage *string    `json:"obsolescence_message,omitempty"`
+	Origin              string     `json:"origin"`
+	Product             Product    `json:"product"`
+	RegisterTimestamp   time.Time  `json:"register_timestamp"`
+	Signature           Signature  `json:"signature"`
 }
 
 // TraceEvent A trace event describes how the trace comes into life.
@@ -80,6 +94,7 @@ type Trace struct {
 // CREATE: A new product is generated.
 // COPY: A product is copied from to a new location.
 // DELETE: A product is removed from for a given reason.
+// OBSOLETE: A product is not recommended for use.
 type TraceEvent string
 
 // TraceRegistration The results of a trace registration.
@@ -113,7 +128,7 @@ type ValidationError_Loc_Item struct {
 }
 
 // PutTracesV1JSONBody defines parameters for PutTracesV1.
-type PutTracesV1JSONBody = []Trace
+type PutTracesV1JSONBody = []RegisterTrace
 
 // ValidateProductParams defines parameters for ValidateProduct.
 type ValidateProductParams struct {
@@ -269,8 +284,11 @@ type ClientInterface interface {
 	// SearchHashV1 request
 	SearchHashV1(ctx context.Context, hash string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// GetTraceV1 request
-	GetTraceV1(ctx context.Context, productname string, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// GetTraceByProductNameV1 request
+	GetTraceByProductNameV1(ctx context.Context, productname string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetTraceByIdV1 request
+	GetTraceByIdV1(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ValidateProduct request
 	ValidateProduct(ctx context.Context, productname string, params *ValidateProductParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -324,8 +342,20 @@ func (c *Client) SearchHashV1(ctx context.Context, hash string, reqEditors ...Re
 	return c.Client.Do(req)
 }
 
-func (c *Client) GetTraceV1(ctx context.Context, productname string, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetTraceV1Request(c.Server, productname)
+func (c *Client) GetTraceByProductNameV1(ctx context.Context, productname string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetTraceByProductNameV1Request(c.Server, productname)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetTraceByIdV1(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetTraceByIdV1Request(c.Server, id)
 	if err != nil {
 		return nil, err
 	}
@@ -449,13 +479,47 @@ func NewSearchHashV1Request(server string, hash string) (*http.Request, error) {
 	return req, nil
 }
 
-// NewGetTraceV1Request generates requests for GetTraceV1
-func NewGetTraceV1Request(server string, productname string) (*http.Request, error) {
+// NewGetTraceByProductNameV1Request generates requests for GetTraceByProductNameV1
+func NewGetTraceByProductNameV1Request(server string, productname string) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
 
 	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "productname", runtime.ParamLocationPath, productname)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/traces/name/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetTraceByIdV1Request generates requests for GetTraceByIdV1
+func NewGetTraceByIdV1Request(server string, id string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "id", runtime.ParamLocationPath, id)
 	if err != nil {
 		return nil, err
 	}
@@ -587,8 +651,11 @@ type ClientWithResponsesInterface interface {
 	// SearchHashV1 request
 	SearchHashV1WithResponse(ctx context.Context, hash string, reqEditors ...RequestEditorFn) (*SearchHashV1Response, error)
 
-	// GetTraceV1 request
-	GetTraceV1WithResponse(ctx context.Context, productname string, reqEditors ...RequestEditorFn) (*GetTraceV1Response, error)
+	// GetTraceByProductNameV1 request
+	GetTraceByProductNameV1WithResponse(ctx context.Context, productname string, reqEditors ...RequestEditorFn) (*GetTraceByProductNameV1Response, error)
+
+	// GetTraceByIdV1 request
+	GetTraceByIdV1WithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetTraceByIdV1Response, error)
 
 	// ValidateProduct request
 	ValidateProductWithResponse(ctx context.Context, productname string, params *ValidateProductParams, reqEditors ...RequestEditorFn) (*ValidateProductResponse, error)
@@ -662,7 +729,7 @@ func (r SearchHashV1Response) StatusCode() int {
 	return 0
 }
 
-type GetTraceV1Response struct {
+type GetTraceByProductNameV1Response struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON200      *[]Trace
@@ -670,7 +737,7 @@ type GetTraceV1Response struct {
 }
 
 // Status returns HTTPResponse.Status
-func (r GetTraceV1Response) Status() string {
+func (r GetTraceByProductNameV1Response) Status() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Status
 	}
@@ -678,7 +745,30 @@ func (r GetTraceV1Response) Status() string {
 }
 
 // StatusCode returns HTTPResponse.StatusCode
-func (r GetTraceV1Response) StatusCode() int {
+func (r GetTraceByProductNameV1Response) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetTraceByIdV1Response struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Trace
+	JSON422      *HTTPValidationError
+}
+
+// Status returns HTTPResponse.Status
+func (r GetTraceByIdV1Response) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetTraceByIdV1Response) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -743,13 +833,22 @@ func (c *ClientWithResponses) SearchHashV1WithResponse(ctx context.Context, hash
 	return ParseSearchHashV1Response(rsp)
 }
 
-// GetTraceV1WithResponse request returning *GetTraceV1Response
-func (c *ClientWithResponses) GetTraceV1WithResponse(ctx context.Context, productname string, reqEditors ...RequestEditorFn) (*GetTraceV1Response, error) {
-	rsp, err := c.GetTraceV1(ctx, productname, reqEditors...)
+// GetTraceByProductNameV1WithResponse request returning *GetTraceByProductNameV1Response
+func (c *ClientWithResponses) GetTraceByProductNameV1WithResponse(ctx context.Context, productname string, reqEditors ...RequestEditorFn) (*GetTraceByProductNameV1Response, error) {
+	rsp, err := c.GetTraceByProductNameV1(ctx, productname, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
-	return ParseGetTraceV1Response(rsp)
+	return ParseGetTraceByProductNameV1Response(rsp)
+}
+
+// GetTraceByIdV1WithResponse request returning *GetTraceByIdV1Response
+func (c *ClientWithResponses) GetTraceByIdV1WithResponse(ctx context.Context, id string, reqEditors ...RequestEditorFn) (*GetTraceByIdV1Response, error) {
+	rsp, err := c.GetTraceByIdV1(ctx, id, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetTraceByIdV1Response(rsp)
 }
 
 // ValidateProductWithResponse request returning *ValidateProductResponse
@@ -853,15 +952,15 @@ func ParseSearchHashV1Response(rsp *http.Response) (*SearchHashV1Response, error
 	return response, nil
 }
 
-// ParseGetTraceV1Response parses an HTTP response from a GetTraceV1WithResponse call
-func ParseGetTraceV1Response(rsp *http.Response) (*GetTraceV1Response, error) {
+// ParseGetTraceByProductNameV1Response parses an HTTP response from a GetTraceByProductNameV1WithResponse call
+func ParseGetTraceByProductNameV1Response(rsp *http.Response) (*GetTraceByProductNameV1Response, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
 	defer func() { _ = rsp.Body.Close() }()
 	if err != nil {
 		return nil, err
 	}
 
-	response := &GetTraceV1Response{
+	response := &GetTraceByProductNameV1Response{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -869,6 +968,39 @@ func ParseGetTraceV1Response(rsp *http.Response) (*GetTraceV1Response, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest []Trace
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest HTTPValidationError
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON422 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetTraceByIdV1Response parses an HTTP response from a GetTraceByIdV1WithResponse call
+func ParseGetTraceByIdV1Response(rsp *http.Response) (*GetTraceByIdV1Response, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetTraceByIdV1Response{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Trace
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -922,40 +1054,49 @@ func ParseValidateProductResponse(rsp *http.Response) (*ValidateProductResponse,
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
+	"x+Px+K8AAAD///5GUsJtKQAA",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
