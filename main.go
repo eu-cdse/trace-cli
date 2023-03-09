@@ -35,6 +35,14 @@ func (cmd Command) RequiresArgs() bool {
 	return cmd != STATUS
 }
 
+func (cmd Command) IsValid() bool {
+	switch cmd {
+	case CHECK, PRINT, REGISTER, STATUS:
+		return true
+	}
+	return false
+}
+
 func PrintUsageAndExit() {
 	fmt.Printf(`
 Usage:
@@ -95,6 +103,10 @@ func main() {
 		PrintUsageAndExit()
 	}
 	command := Command(strings.ToUpper(command_args[0]))
+	if !command.IsValid() {
+		log.Errorf("Invalid command '%v' provided.", command)
+		PrintUsageAndExit()
+	}
 	if command.RequiresArgs() && len(command_args) < 2 {
 		log.Error("No files provided for which traces should be generated/checked.")
 		PrintUsageAndExit()
@@ -109,7 +121,6 @@ func main() {
 		check, err = CheckProducts(files, *url)
 		if !check {
 			log.Error("Not all products could be validated successfully.")
-			os.Exit(1)
 		}
 	case PRINT:
 		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, private_key)
