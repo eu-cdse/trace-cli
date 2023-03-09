@@ -53,6 +53,7 @@ Available Options:
 
 // FIXME remove global, make argument
 var hash_function Algorithm = BLAKE3
+var insecure bool = true
 
 func main() {
 	log.SetLevel(log.WarnLevel)
@@ -66,6 +67,7 @@ func main() {
 	input_str := flag.String("input", "", "The input products based on which the product has been generated, as comma-separated pairs of NAME:HASH tuples.")
 	verbose := flag.Bool("verbose", true, "Turn on verbose output.")
 	debug := flag.Bool("debug", false, "Turn on debugging output.")
+	flag.BoolVar(&insecure, "insecure", insecure, "Ignore insecure SSL certificates when connecting to the API endpoint.")
 
 	getopt.Alias("i", "include")
 	getopt.Alias("v", "verbose")
@@ -158,8 +160,15 @@ func CreateClient(url string) *ClientWithResponses {
 		c.Client = &http.Client{Transport: tr}
 		return nil
 	}
+	var api *ClientWithResponses
+	var err error
 
-	api, err := NewClientWithResponses(url, skip_cert_verify)
+	if insecure {
+		api, err = NewClientWithResponses(url, skip_cert_verify)
+	} else {
+		api, err = NewClientWithResponses(url)
+	}
+
 	if err != nil {
 		log.Fatalf("Unable to connect to API endpoint: %s", err)
 	}
