@@ -18,7 +18,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func CreateProductTraces(files []string, name *string, include_pattern glob.Glob, inputs *[]Input, event TraceEvent, key any) []RegisterTrace {
+func CreateProductTraces(files []string, name *string, include_pattern glob.Glob, inputs *[]Input, event TraceEvent, key any, cert any) []RegisterTrace {
 	log.WithFields(log.Fields{"files": files}).Infof("Creating traces for %d product(s)...", len(files))
 	if name != nil && len(files) > 1 {
 		log.Warn("Product name was specified, but traces for multiple products were requested; the specified product name will be ignored.")
@@ -31,7 +31,7 @@ func CreateProductTraces(files []string, name *string, include_pattern glob.Glob
 			Event:         event,
 			HashAlgorithm: string(hash_function),
 			Product:       p,
-			Signature:     CreateSignature(&p, key),
+			Signature:     CreateSignature(&p, key, cert),
 		}
 	}
 	return traces
@@ -70,12 +70,12 @@ func CreateProductInfo(filename string, name *string, include_pattern glob.Glob,
 	return p
 }
 
-func CreateSignature(p *Product, key any) Signature {
+func CreateSignature(p *Product, key any, cert any) Signature {
 	if key == nil {
 		return Signature{}
 	}
 	data := CreateSignatureContents(p)
-	algorithm, signature, public_key := Sign(data, key)
+	algorithm, signature, public_key := Sign(data, key, cert)
 
 	return Signature{
 		Algorithm: algorithm,
@@ -140,6 +140,7 @@ func CheckProduct(filename string, api *ClientWithResponses) (bool, error) {
 		for _, t := range *traces {
 			check, status := ValidateTrace(&t, hash, hash_function)
 
+			//TODO print signature information (e.g. issuer)
 			fmt.Printf("\t%s  %10s %20s  %-25s %s\n",
 				t.RegisterTimestamp.UTC().Format(time.RFC3339),
 				t.Event,
@@ -156,8 +157,8 @@ func CheckProduct(filename string, api *ClientWithResponses) (bool, error) {
 
 func ValidateTrace(t *Trace, hash []byte, hash_func Algorithm) (bool, string) {
 	log.WithFields(log.Fields{"trace": t}).Debug("Checking Trace")
-	sig, sig_err := DecodeHash(t.Signature.Signature)
-	key, key_err := DecodeHash(t.Signature.PublicKey)
+	sig_bytes, sig_err := DecodeHash(t.Signature.Signature)
+	key_bytes, key_err := DecodeHash(t.Signature.PublicKey)
 	hash_str := EncodeHash(hash)
 
 	if hash_func != Algorithm(t.HashAlgorithm) {
@@ -171,7 +172,7 @@ func ValidateTrace(t *Trace, hash []byte, hash_func Algorithm) (bool, string) {
 		return true, "OK (Unsigned)"
 	} else if sig_err != nil || key_err != nil {
 		return false, "FAIL (Signature Decode)"
-	} else if !VerifySignature([]byte(t.Signature.Message), sig, key, t.Signature.Algorithm) {
+	} else if !VerifySignature([]byte(t.Signature.Message), sig_bytes, key_bytes, t.Signature.Algorithm, t.RegisterTimestamp) {
 		return false, "FAIL (Signature Invalid)"
 	} else if !TraceSignatureMatch(t, t.Signature.Message) {
 		return false, "FAIL (Signature Mismatch)"

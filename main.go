@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gobwas/glob"
 	"github.com/rsc/getopt"
@@ -67,7 +68,8 @@ func main() {
 	log.SetLevel(log.WarnLevel)
 
 	hash_func := flag.String("algorithm", string(hash_function), "The selected checksum algorithm, can be any of the following: SHA256, SHA3, BLAKE3.")
-	cert_file := flag.String("cert", "", "The path to the PEM file holding the private key.")
+	key_file := flag.String("key", "", "The path to the PEM file holding the private key.")
+	cert_file := flag.String("cert", "", "The path to the PEM file holding the certificate.")
 	url := flag.String("url", "https://64.225.133.55.nip.io/", "The address to the traceabilty service API endpoint.")
 	event := flag.String("event", "CREATE", "The trace event, can be any of the following: CREATE, COPY, DELETE.")
 	obsolete := flag.String("obsolete", "", "Creates an OBSOLETE trace with the given reason for the products.")
@@ -96,7 +98,13 @@ func main() {
 	hash_function = Algorithm(strings.ToUpper(*hash_func)).Validate()
 	include_pattern := ValidateIncludePattern(*include_glob)
 	inputs := ValidateInputs(input_str)
-	private_key := ValidateCertFile(*cert_file)
+	private_key := ValidateKeyFile(*key_file)
+	certificate := ValidateCertFile(*cert_file)
+
+	if (len(*key_file) != 0) != (len(*cert_file) != 0) {
+		log.Error("If a certificate file is provide, also the private key file is required and v.v.")
+		PrintUsageAndExit()
+	}
 
 	if obsolete != nil && len(*obsolete) > 0 {
 		log.Infof("Marking products as OBSOLETE with reason '%s'", *obsolete)
@@ -129,10 +137,10 @@ func main() {
 			log.Error("Not all products could be validated successfully.")
 		}
 	case PRINT:
-		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, private_key)
+		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, private_key, certificate)
 		fmt.Printf("%s\n", FormatTraces(&traces))
 	case REGISTER:
-		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, private_key)
+		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, private_key, certificate)
 		err = RegisterTraces(traces, *url)
 		if err != nil {
 			log.Warn("Traces could not be registered, dumping for recovery.")
@@ -217,13 +225,13 @@ func ValidateIncludePattern(pattern string) glob.Glob {
 	return glob.MustCompile(pattern)
 }
 
-func ValidateCertFile(certfile string) any {
-	if len(certfile) == 0 {
+func ValidateKeyFile(keyfile string) any {
+	if len(keyfile) == 0 {
 		return nil
 	}
-	key_bytes, err := os.ReadFile(certfile)
+	key_bytes, err := os.ReadFile(keyfile)
 	if err != nil {
-		log.Fatalf("Unable to read PEM file holding the private key for signing from '%s': %s", certfile, err.Error())
+		log.Fatalf("Unable to read PEM file holding the private key for signing from '%s': %s", keyfile, err.Error())
 	}
 
 	stdin_pass := func() string {
@@ -241,6 +249,22 @@ func ValidateCertFile(certfile string) any {
 		log.Fatalf("%v", err)
 	}
 	return key
+}
+
+func ValidateCertFile(certfile string) any {
+	if len(certfile) == 0 {
+		return nil
+	}
+	cert_bytes, err := os.ReadFile(certfile)
+	if err != nil {
+		log.Fatalf("Unable to read PEM file holding the certificate for signing from '%s': %s", certfile, err.Error())
+	}
+
+	cert, err := DecodeCertificatePEM(cert_bytes, time.Now())
+	if err != nil {
+		log.Fatalf("Unable to decode certificate: %v", err)
+	}
+	return cert
 }
 
 func ValidateInputs(input_string *string) *[]Input {

@@ -13,110 +13,85 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"strings"
+	"time"
 
 	"github.com/youmark/pkcs8"
 
 	log "github.com/sirupsen/logrus"
 )
 
-func Sign(data []byte, key any) (string, []byte, []byte) {
+func Sign(data []byte, key any, cert any) (string, []byte, []byte) {
+	certificate := cert.(*x509.Certificate)
+
 	log.Debugf("Signature Content\n---\n%s\n---\n", data)
 	log.Debugf("Signature Content Bytes\n---\n%s\n---\n", EncodeHash(data))
+
+	// It would be better to read the signature algorithm from certificate and re-use that.
 	digest := HashBytes(data, SHA256)
 	log.Debugf("Content Digest (SHA256): %s", EncodeHash(digest))
 
 	var algorithm string
 	var signature []byte
-	var public []byte
 	var sign_err error
-	var key_err error
 
 	switch key := key.(type) {
 	case *rsa.PrivateKey:
 		algorithm = "RSA-SHA256"
+		if certificate.SignatureAlgorithm != x509.SHA256WithRSA {
+			log.Fatalf("Unspported signature algorithm in certificate: %v. Only %v supported for the given private key.",
+				certificate.SignatureAlgorithm.String(), algorithm)
+		}
+		if !key.Public().(*rsa.PublicKey).Equal(certificate.PublicKey) {
+			log.Fatalf("Certificate has not been generated with the given private key, public key does not match: %v vs %v.",
+				key.Public(), certificate.PublicKey)
+		}
 		signature, sign_err = key.Sign(rand.Reader, digest, crypto.SHA256)
-		public, key_err = x509.MarshalPKIXPublicKey(key.Public())
 	case *ecdsa.PrivateKey:
 		algorithm = "ECDSA-SHA256"
+		if certificate.SignatureAlgorithm != x509.ECDSAWithSHA256 {
+			log.Fatalf("Unspported signature algorithm in certificate: %v. Only %v supported for the given private key.",
+				certificate.SignatureAlgorithm.String(), algorithm)
+		}
+		if !key.Public().(*ecdsa.PublicKey).Equal(certificate.PublicKey) {
+			log.Fatalf("Certificate has not been generated with the given private key, public key does not match: %v vs %v.",
+				key.Public(), certificate.PublicKey)
+		}
 		signature, sign_err = key.Sign(rand.Reader, digest, crypto.SHA256)
-		public, key_err = x509.MarshalPKIXPublicKey(key.Public())
 	default:
 		log.Fatal("unknown type of private key")
 	}
-	log.Debugf("Signature Algoritm: %s", algorithm)
+	log.Debugf("Signature Algoritm: %s, in Certificate: %s", algorithm, certificate.SignatureAlgorithm.String())
 
 	if sign_err != nil {
 		log.Fatalf("Unable to sign trace: " + sign_err.Error())
 	}
-	if key_err != nil {
-		log.Fatalf("Unable to export public key: " + key_err.Error())
-	}
-
-	return algorithm, signature, public
+	return algorithm, signature, certificate.Raw
 }
 
-func VerifySignature(data []byte, signature []byte, public_key []byte, algorithm string) bool {
+func VerifySignature(message []byte, signature []byte, certificate []byte, algorithm string, sign_time time.Time) bool {
 	log.Debugf("Signature Algorithm: %s", algorithm)
-	log.Debugf("Signature Content\n---\n%s\n---\n", data)
-	log.Debugf("Signature Content Bytes: %s", EncodeHash(data))
+	log.Debugf("Signature Content\n---\n%s\n---\n", message)
+	log.Debugf("Signature Content Bytes: %s", EncodeHash(message))
 	log.Debugf("Signature Bytes: %s", EncodeHash(signature))
-	log.Debugf("Public Key Bytes: %s", EncodeHash(public_key))
+	log.Debugf("Certificate Bytes: %s", EncodeHash(certificate))
 
-	key, key_err := DecodePublicKey(public_key)
-	if key_err != nil {
-		log.Errorf("Unable to decode signature key: %v", key_err)
+	cert, err := DecodeCertificateDER(certificate, sign_time)
+	if err != nil {
+		log.Errorf("Unable to decode signature certificate: %v", err)
 		return false
 	}
+	log.Debugf("Signature Key Algorithm: %s", cert.SignatureAlgorithm.String())
 
-	sig_alg := strings.SplitN(algorithm, "-", 2)
-	if len(sig_alg) != 2 {
-		log.Errorf("Invalid signature algorithm: %s", algorithm)
+	check_err := cert.CheckSignature(cert.SignatureAlgorithm, message, signature)
+	if check_err != nil {
+		log.Warnf("Signature validation failed: %v", check_err)
 		return false
 	}
-
-	var hash crypto.Hash
-	hash_alg := Algorithm(sig_alg[1])
-	switch hash_alg {
-	case SHA256:
-		hash = crypto.SHA256
-	default:
-		log.Errorf("Invalid hash used for signature: %s", hash_alg)
-		return false
-	}
-
-	digest := HashBytes(data, hash_alg)
-
-	var key_type string
-	var verify bool
-
-	switch key := key.(type) {
-	case *rsa.PublicKey:
-		key_type = "RSA"
-		err := rsa.VerifyPKCS1v15(key, hash, digest, signature)
-		verify = err == nil
-		if err != nil {
-			log.Warnf("Unable to verify signature: %v", err)
-		}
-	case *ecdsa.PublicKey:
-		key_type = "ECDSA"
-		verify = ecdsa.VerifyASN1(key, digest, signature)
-	default:
-		log.Errorf("Invalid type of signture key: %s", sig_alg[0])
-		return false
-	}
-	log.Debugf("Signature Key Algorithm: %s", key_type)
-
-	if key_type != sig_alg[0] {
-		log.Errorf("Invalid signature public key type %s, expected %s", key_type, sig_alg[0])
-		return false
-	}
-
-	return verify
+	return true
 }
 
-func DecodePrivateKey(data []byte, password ...func() string) (any, error) {
-	block, _ := pem.Decode(data)
+func DecodePrivateKey(key_pem []byte, password ...func() string) (any, error) {
+	block, _ := pem.Decode(key_pem)
 	if block == nil {
 		return nil, fmt.Errorf("Failed to decode PEM block of the private key.")
 	}
@@ -174,4 +149,29 @@ func DecodePublicKey(public_key []byte) (any, error) {
 		return nil, err
 	}
 	return key, nil
+}
+
+func DecodeCertificatePEM(certificate_pem []byte, sign_time time.Time) (*x509.Certificate, error) {
+	block, _ := pem.Decode(certificate_pem)
+	if block == nil {
+		return nil, fmt.Errorf("Failed to decode PEM block of the certificate.")
+	}
+	if x509.IsEncryptedPEMBlock(block) {
+		return nil, fmt.Errorf("PEM encryption of the certificate is not supported.")
+	}
+
+	return DecodeCertificateDER(block.Bytes, sign_time)
+}
+
+func DecodeCertificateDER(certificate_der []byte, sign_time time.Time) (*x509.Certificate, error) {
+	certificate, err := x509.ParseCertificate(certificate_der)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to parse certificate: %v", err)
+	}
+
+	if sign_time.Before(certificate.NotBefore) || sign_time.After(certificate.NotAfter) {
+		log.Warnf("Certificate is expired: %v is not in valid range [%v, %v]",
+			sign_time, certificate.NotBefore, certificate.NotAfter)
+	}
+	return certificate, nil
 }
