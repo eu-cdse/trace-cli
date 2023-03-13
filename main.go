@@ -30,15 +30,16 @@ const (
 	PRINT            = "PRINT"
 	REGISTER         = "REGISTER"
 	STATUS           = "STATUS"
+	VERSION          = "VERSION"
 )
 
 func (cmd Command) RequiresArgs() bool {
-	return cmd != STATUS
+	return !(cmd == STATUS || cmd == VERSION)
 }
 
 func (cmd Command) IsValid() bool {
 	switch cmd {
-	case CHECK, PRINT, REGISTER, STATUS:
+	case CHECK, PRINT, REGISTER, STATUS, VERSION:
 		return true
 	}
 	return false
@@ -53,6 +54,7 @@ Available Commands:
   check    Check the integrity and history of a given product
   print    Creates a new trace for a given product and prints it
   register Creates a new trace for a given product and registers it
+  vesrion  Prints the tool version and exits
 
 Available Options:
 `, os.Args[0])
@@ -63,6 +65,7 @@ Available Options:
 // FIXME remove global, make argument
 var hash_function Algorithm = BLAKE3
 var insecure bool = true
+var version string
 
 func main() {
 	log.SetLevel(log.WarnLevel)
@@ -76,7 +79,7 @@ func main() {
 	include_glob := flag.String("include", "*", "A glob pattern defining the elements within an archive to include.")
 	name := flag.String("name", "", "The product name for which the trace is generated. (default is the filename)")
 	input_str := flag.String("input", "", "The input products based on which the product has been generated, as comma-separated pairs of NAME:HASH tuples.")
-	verbose := flag.Bool("verbose", true, "Turn on verbose output.")
+	verbose := flag.Bool("verbose", false, "Turn on verbose output.")
 	debug := flag.Bool("debug", false, "Turn on debugging output.")
 	flag.BoolVar(&insecure, "insecure", insecure, "Ignore insecure SSL certificates when connecting to the API endpoint.")
 
@@ -92,7 +95,7 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	log.Info("CDAS Trace CLI")
+	log.Infof("CDAS Trace CLI %s", version)
 
 	trace_event := TraceEvent(strings.ToUpper(*event)).Validate()
 	hash_function = Algorithm(strings.ToUpper(*hash_func)).Validate()
@@ -148,6 +151,8 @@ func main() {
 		}
 	case STATUS:
 		err = CheckStatus(*url)
+	case VERSION:
+		fmt.Printf("CDAS Trace CLI Version: %s\n", version)
 	default:
 		log.Errorf("Unknown command '%s'.\n", command_args[0])
 		PrintUsageAndExit()
