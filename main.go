@@ -54,7 +54,7 @@ Available Commands:
   check    Check the integrity and history of a given product
   print    Creates a new trace for a given product and prints it
   register Creates a new trace for a given product and registers it
-  vesrion  Prints the tool version and exits
+  version  Prints the tool version and exits
 
 Available Options:
 `, os.Args[0])
