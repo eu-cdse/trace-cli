@@ -146,7 +146,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Traces for the given product were found.",
+            "description": "Found traces for the given product name.",
             "content": {
               "application/json": {
                 "schema": {
@@ -158,9 +158,6 @@
                 }
               }
             }
-          },
-          "404": {
-            "description": "No traces for the given product were found."
           },
           "422": {
             "description": "Validation Error",
@@ -196,7 +193,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Traces for the given filehash were found.",
+            "description": "Found traces for the given filehash.",
             "content": {
               "application/json": {
                 "schema": {
@@ -208,9 +205,6 @@
                 }
               }
             }
-          },
-          "404": {
-            "description": "No traces for the given filehash were found."
           },
           "422": {
             "description": "Validation Error",
