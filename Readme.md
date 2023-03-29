@@ -71,13 +71,6 @@ All the api-endpoint handling is automatically generated from the Traceabiltiy O
 make regenerate
 ```
 
-### Before commit
-```
-go fmt
-go build
-go test -v
-```
-
 ### Before release
 ```
 go mod tidy
