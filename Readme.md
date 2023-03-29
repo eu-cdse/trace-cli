@@ -10,7 +10,11 @@ The `COMMAND` defines the primary operation to be carried out, e.g. generating t
 
 The various commands options are shown when invoking the commandline tool without any extra arguments:
 ```
-~ ./trace-cli
+# Linux
+./trace-cli
+
+# Windows
+trace-cli.exe
 ```
 
 ## Digital Signatures
@@ -56,19 +60,15 @@ Note that some signing algorithms (e.g. ECDSA) vary the signature each time it i
 ## Building the CLI
 In order to build the commandline tool either a golang build environment has to be setup, or it is built using docker/podman:
 ```
-docker run --rm -it -v {$PWD}:/work/:Z -w /work/ golang:1.19.3 go build
+docker run --rm -it -v {$PWD}:/work/:Z -w /work/ golang:1.19.3 make
 ```
 
-Running the unit-tests:
-```
-docker run --rm -it -v {$PWD}:/work/:Z -w /work/ golang:1.19.3 go test -v
-```
+This will build the binary and run the tests. For additional build options, check the Makefile.
 
 ### Regenerating the OpenAPI endpoints
-All the api-endpoint handling is automatically generated from the Traceabiltiy OpenAPI specification. In order to regenerate the endpoints use the following commands inside the build environment (e.g. container or native):
+All the api-endpoint handling is automatically generated from the Traceabiltiy OpenAPI specification. In order to regenerate the endpoints use the `regenerate` target:
 ```
-go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest
-oapi-codegen -generate types,client,spec -package main -o traceability.gen.go api-spec/cdas-traceability.json
+make regenerate
 ```
 
 ### Before commit
