@@ -14,29 +14,35 @@ The various commands options are shown when invoking the commandline tool withou
 ```
 
 ## Digital Signatures
-All traces that are generated through the commandline tool can be signed digitally. Likewise, the tool will also verify digital signatures when checking a products integrity.
+All traces that are generated through the commandline tool can be signed digitally. Likewise, the tool will also verify digital signatures when checking a product's integrity.
 
-Generate a new set of e.g. RSA keys:
+How to use OpenSSL to generate a self-signed certificate:
 ```
+# Generate a new set of e.g. RSA keys
 openssl genrsa -out private.rsa.pem 4096
+
+# Generate the corresponding certificate:
+openssl req -x509 -sha256 -days 365 -key private.rsa.pem -out certificate.crt
 ```
 
-How to use OpenSSL to validate traces:
+How to use OpenSSL to validate trace signatures:
 ```
-# Convert the public key into PEM format
-echo $trace.signature.public_key > key.hex
-xxd -plain -revert key.hex > key.der
-openssl pkey -pubin -inform DER -in key.der -outform PEM -out key.pem
+# Check the trace certificate
+echo $trace.signature.public_key | xxd -plain -revert > trace.cer
+openssl x509 -inform DER -in trace.cer -text -noout
+
+# Dump the public key:
+openssl x509 -inform DER -in trace.cer -noout -pubkey > trace-pubkey.pem
 
 # Dump the signature bytes
-echo $trace.signature.signature > data.sig.hex
-xxd -plain -revert data.sig.hex > data.sig
+echo $trace.signature.signature | xxd -plain -revert > data.sig
 
 # Dump the content bytes
-echo <Trace-Content-No-EOL> > data.txt
+echo $trace.signature.message > data.txt
 
-# Check the signature validaty, should print "Verification OK" on success
-openssl dgst -sha256 -verify key.pem -signature data.sig data.txt
+# Check the signature validaty, should print "Verified OK" on success
+openssl dgst -sha256 -verify trace-pubkey.pem -signature data.sig data.txt
+
 ```
 Note that depending on the signature algorithm used, `-sha256` needs to be adjusted. Important: this refers to the signature, not the product checksum algorithm.
 Editors like Vim will add an EOL to text files, this needs to be either removed or STDIN used instead (CTRL-D to send EOF on unix).
@@ -45,7 +51,7 @@ How to use OpenSSL to create signatures:
 ```
 openssl dgst -sha256 -sign private.rsa.pem -out data.sig data.txt
 ```
-Note that some signing algorithms (e.g. ECDSA) vary the signature ach time it's generated.
+Note that some signing algorithms (e.g. ECDSA) vary the signature each time it is generated, so don't expect byte equality.
 
 ## Building the CLI
 In order to build the commandline tool either a golang build environment has to be setup, or it is built using docker/podman:
