@@ -18,8 +18,12 @@ debug:
 build:
 	go build -ldflags="${compact_flags}"
 
+regenerate:
+	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest
+	oapi-codegen -generate types,client,spec -package main -o traceability.gen.go api-spec/cdas-traceability.json
+
 release:
 	GOOS=linux   GOARCH=amd64 go build -ldflags="${compact_flags}"
 	GOOS=windows GOARCH=amd64 go build -ldflags="${compact_flags}"
 
-.PHONY: all test build debug release
+.PHONY: all test build debug release regenerate
