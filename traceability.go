@@ -18,7 +18,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func CreateProductTraces(files []string, name *string, include_pattern glob.Glob, inputs *[]Input, event TraceEvent, key any, cert any) []RegisterTrace {
+func CreateProductTraces(files []string, name *string, include_pattern glob.Glob, inputs *[]Input, event TraceEvent, obsolescense *string, key any, cert any) []RegisterTrace {
 	log.WithFields(log.Fields{"files": files}).Infof("Creating traces for %d product(s)...", len(files))
 	if name != nil && len(files) > 1 {
 		log.Warn("Product name was specified, but traces for multiple products were requested; the specified product name will be ignored.")
@@ -28,10 +28,11 @@ func CreateProductTraces(files []string, name *string, include_pattern glob.Glob
 	for i, filename := range files {
 		p := CreateProductInfo(filename, name, include_pattern, inputs)
 		traces[i] = RegisterTrace{
-			Event:         event,
-			HashAlgorithm: string(hash_function),
-			Product:       p,
-			Signature:     CreateSignature(&p, key, cert),
+			Event:               event,
+			HashAlgorithm:       string(hash_function),
+			ObsolescenceMessage: obsolescense,
+			Product:             p,
+			Signature:           CreateSignature(&p, key, cert),
 		}
 	}
 	return traces
@@ -139,14 +140,19 @@ func CheckProduct(filename string, api *ClientWithResponses) (bool, error) {
 
 		for _, t := range *traces {
 			check, status := ValidateTrace(&t, hash, hash_function)
+			obsolescence := ""
+			if t.ObsolescenceMessage != nil {
+				obsolescence = " => " + *t.ObsolescenceMessage
+			}
 
 			//TODO print signature information (e.g. issuer)
-			fmt.Printf("\t%s  %10s %20s  %-25s %s\n",
+			fmt.Printf("\t%s  %10s %20s  %-25s %s %s\n",
 				t.RegisterTimestamp.UTC().Format(time.RFC3339),
 				t.Event,
 				t.Origin,
 				status,
-				t.Product.Name)
+				t.Product.Name,
+				obsolescence)
 
 			success = check || success // any trace match is considered success
 		}
@@ -176,6 +182,8 @@ func ValidateTrace(t *Trace, hash []byte, hash_func Algorithm) (bool, string) {
 		return false, "FAIL (Signature Invalid)"
 	} else if !TraceSignatureMatch(t, t.Signature.Message) {
 		return false, "FAIL (Signature Mismatch)"
+	} else if t.Event == OBSOLETE {
+		return true, "OK (Obsolete)"
 	}
 
 	return true, "OK"

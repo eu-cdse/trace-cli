@@ -112,6 +112,9 @@ func main() {
 	if obsolete != nil && len(*obsolete) > 0 {
 		log.Infof("Marking products as OBSOLETE with reason '%s'", *obsolete)
 		trace_event = OBSOLETE
+	} else {
+		// Explicitly mark as nil to not send it to API
+		obsolete = nil
 	}
 
 	command_args := flag.Args()
@@ -140,10 +143,10 @@ func main() {
 			log.Error("Not all products could be validated successfully.")
 		}
 	case PRINT:
-		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, private_key, certificate)
+		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, obsolete, private_key, certificate)
 		fmt.Printf("%s\n", FormatTraces(&traces))
 	case REGISTER:
-		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, private_key, certificate)
+		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, obsolete, private_key, certificate)
 		err = RegisterTraces(traces, *url)
 		if err != nil {
 			log.Warn("Traces could not be registered, dumping for recovery.")

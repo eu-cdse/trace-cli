@@ -141,18 +141,18 @@ func TestCheckTraceChecksumContent(t *testing.T) {
 
 func TestTraceName(t *testing.T) {
 	name := "asdf"
-	traces := CreateProductTraces([]string{"test-data/test1.bin"}, &name, ValidateIncludePattern(""), nil, COPY, nil, nil)
+	traces := CreateProductTraces([]string{"test-data/test1.bin"}, &name, ValidateIncludePattern(""), nil, COPY, nil, nil, nil)
 	expectEqual(1, len(traces), t)
 	expectEqual("asdf", traces[0].Product.Name, t)
 }
 
 func TestTraceNameDefault(t *testing.T) {
 	name := ""
-	traces := CreateProductTraces([]string{"test-data/test1.bin"}, &name, ValidateIncludePattern(""), nil, COPY, nil, nil)
+	traces := CreateProductTraces([]string{"test-data/test1.bin"}, &name, ValidateIncludePattern(""), nil, COPY, nil, nil, nil)
 	expectEqual(1, len(traces), t)
 	expectEqual("test1.bin", traces[0].Product.Name, t)
 
-	traces = CreateProductTraces([]string{"test-data/test1.bin"}, nil, ValidateIncludePattern(""), nil, COPY, nil, nil)
+	traces = CreateProductTraces([]string{"test-data/test1.bin"}, nil, ValidateIncludePattern(""), nil, COPY, nil, nil, nil)
 	expectEqual(1, len(traces), t)
 	expectEqual("test1.bin", traces[0].Product.Name, t)
 
@@ -160,7 +160,7 @@ func TestTraceNameDefault(t *testing.T) {
 
 func TestTraceNameOverride(t *testing.T) {
 	name := "asdf"
-	traces := CreateProductTraces([]string{"test-data/test1.bin", "test-data/test2.bin"}, &name, ValidateIncludePattern(""), nil, COPY, nil, nil)
+	traces := CreateProductTraces([]string{"test-data/test1.bin", "test-data/test2.bin"}, &name, ValidateIncludePattern(""), nil, COPY, nil, nil, nil)
 	expectEqual(2, len(traces), t)
 	expectEqual("test1.bin", traces[0].Product.Name, t)
 	expectEqual("test2.bin", traces[1].Product.Name, t)
@@ -178,7 +178,7 @@ func TestTraceInputs(t *testing.T) {
 		},
 	}
 	traces := CreateProductTraces([]string{"test-data/test1.bin", "test-data/test2.bin"}, nil, ValidateIncludePattern(""),
-		&inputs, COPY, nil, nil)
+		&inputs, COPY, nil, nil, nil)
 	expectEqual(2, len(traces), t)
 	// inputs are used for all products
 	expectArrayEqual(inputs, *traces[0].Product.Inputs, t)
