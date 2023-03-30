@@ -80,8 +80,8 @@ func CreateSignature(p *Product, key any, cert any) Signature {
 
 	return Signature{
 		Algorithm: algorithm,
-		PublicKey: EncodeHash(public_key),
-		Signature: EncodeHash(signature),
+		PublicKey: EncodeBytes(public_key),
+		Signature: EncodeBytes(signature),
 		Message:   string(data),
 	}
 }
@@ -162,8 +162,8 @@ func CheckProduct(filename string, api *ClientWithResponses) (bool, error) {
 
 func ValidateTrace(t *Trace, hash []byte, hash_func Algorithm) (bool, string) {
 	log.WithFields(log.Fields{"trace": t}).Debug("Checking Trace")
-	sig_bytes, sig_err := DecodeHash(t.Signature.Signature)
-	key_bytes, key_err := DecodeHash(t.Signature.PublicKey)
+	sig_bytes, sig_err := DecodeBytes(t.Signature.Signature)
+	key_bytes, key_err := DecodeBytes(t.Signature.PublicKey)
 	hash_str := EncodeHash(hash)
 
 	if hash_func != Algorithm(t.HashAlgorithm) {

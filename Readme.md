@@ -32,14 +32,14 @@ openssl req -x509 -sha256 -days 365 -key private.rsa.pem -out certificate.crt
 How to use OpenSSL to validate trace signatures:
 ```
 # Check the trace certificate
-echo $trace.signature.public_key | xxd -plain -revert > trace.cer
+echo $trace.signature.public_key | base64 -d > trace.cer
 openssl x509 -inform DER -in trace.cer -text -noout
 
 # Dump the public key:
 openssl x509 -inform DER -in trace.cer -noout -pubkey > trace-pubkey.pem
 
 # Dump the signature bytes
-echo $trace.signature.signature | xxd -plain -revert > data.sig
+echo $trace.signature.signature | base64 -d > data.sig
 
 # Dump the content bytes
 echo $trace.signature.message > data.txt
@@ -53,7 +53,15 @@ Editors like Vim will add an EOL to text files, this needs to be either removed 
 
 How to use OpenSSL to create signatures:
 ```
+# Create the signature
 openssl dgst -sha256 -sign private.rsa.pem -out data.sig data.txt
+
+# Encode the signature bytes
+base64 -w 0 data.sig
+
+# Encode the certificate
+openssl x509 -inform PEM -in certificate.crt -outform DER -out certificate.cer
+base64 -w 0 certificate.cer
 ```
 Note that some signing algorithms (e.g. ECDSA) vary the signature each time it is generated, so don't expect byte equality.
 

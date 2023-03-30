@@ -11,6 +11,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"time"
@@ -20,15 +21,23 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+func EncodeBytes(data []byte) string {
+	return base64.StdEncoding.EncodeToString(data)
+}
+
+func DecodeBytes(data string) ([]byte, error) {
+	return base64.StdEncoding.DecodeString(data)
+}
+
 func Sign(data []byte, key any, cert any) (string, []byte, []byte) {
 	certificate := cert.(*x509.Certificate)
 
 	log.Debugf("Signature Content\n---\n%s\n---\n", data)
-	log.Debugf("Signature Content Bytes\n---\n%s\n---\n", EncodeHash(data))
+	log.Debugf("Signature Content Bytes\n---\n%s\n---\n", EncodeBytes(data))
 
 	// It would be better to read the signature algorithm from certificate and re-use that.
 	digest := HashBytes(data, SHA256)
-	log.Debugf("Content Digest (SHA256): %s", EncodeHash(digest))
+	log.Debugf("Content Digest (SHA256): %s", EncodeBytes(digest))
 
 	var algorithm string
 	var signature []byte
@@ -71,9 +80,9 @@ func Sign(data []byte, key any, cert any) (string, []byte, []byte) {
 func VerifySignature(message []byte, signature []byte, certificate []byte, algorithm string, sign_time time.Time) bool {
 	log.Debugf("Signature Algorithm: %s", algorithm)
 	log.Debugf("Signature Content\n---\n%s\n---\n", message)
-	log.Debugf("Signature Content Bytes: %s", EncodeHash(message))
-	log.Debugf("Signature Bytes: %s", EncodeHash(signature))
-	log.Debugf("Certificate Bytes: %s", EncodeHash(certificate))
+	log.Debugf("Signature Content Bytes: %s", EncodeBytes(message))
+	log.Debugf("Signature Bytes: %s", EncodeBytes(signature))
+	log.Debugf("Certificate Bytes: %s", EncodeBytes(certificate))
 
 	cert, err := DecodeCertificateDER(certificate, sign_time)
 	if err != nil {
@@ -144,7 +153,7 @@ func DecodePrivateKey(key_pem []byte, password ...func() string) (any, error) {
 func DecodePublicKey(public_key []byte) (any, error) {
 	key, err := x509.ParsePKIXPublicKey(public_key)
 	if err != nil {
-		log.Debugf("Key bytes: \n%s", EncodeHash(public_key))
+		log.Debugf("Key bytes: \n%s", EncodeBytes(public_key))
 		log.Errorf("Unable to parse public key: %s", err.Error())
 		return nil, err
 	}
