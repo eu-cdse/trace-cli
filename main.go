@@ -74,6 +74,7 @@ func main() {
 	key_file := flag.String("key", "", "The path to the PEM file holding the private key.")
 	cert_file := flag.String("cert", "", "The path to the PEM file holding the certificate.")
 	url := flag.String("url", "https://64.225.133.55.nip.io/", "The address to the traceabilty service API endpoint.")
+	auth_token := flag.String("auth", "", "The bearer token for authentication against the API endpoint.")
 	event := flag.String("event", "CREATE", "The trace event, can be any of the following: CREATE, COPY, DELETE.")
 	obsolete := flag.String("obsolete", "", "Creates an OBSOLETE trace with the given reason for the products.")
 	include_glob := flag.String("include", "*", "A glob pattern defining the elements within an archive to include.")
@@ -138,7 +139,7 @@ func main() {
 	switch command {
 	case CHECK:
 		var check bool
-		check, err = CheckProducts(files, *url)
+		check, err = CheckProducts(files, CreateClient(*url, auth_token))
 		if !check {
 			log.Error("Not all products could be validated successfully.")
 		}
@@ -147,7 +148,7 @@ func main() {
 		fmt.Printf("%s\n", FormatTraces(&traces))
 	case REGISTER:
 		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, obsolete, private_key, certificate)
-		err = RegisterTraces(traces, *url)
+		err = RegisterTraces(traces, CreateClient(*url, auth_token))
 		if err != nil {
 			log.Warn("Traces could not be registered, dumping for recovery.")
 			fmt.Printf("%s\n", FormatTraces(&traces))
@@ -170,7 +171,7 @@ func main() {
 func CheckStatus(url string) error {
 	log.Infof("Checking API endpoint at %s", url)
 
-	api := CreateClient(url)
+	api := CreateClient(url, nil)
 
 	res, err := api.PingStatusGetWithResponse(context.Background())
 	if err != nil {
@@ -185,7 +186,7 @@ func CheckStatus(url string) error {
 	return fmt.Errorf("Invalid response from service: %s", res.Status())
 }
 
-func CreateClient(url string) *ClientWithResponses {
+func CreateClient(url string, auth_token *string) *ClientWithResponses {
 	skip_cert_verify := func(c *Client) error {
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
@@ -193,14 +194,21 @@ func CreateClient(url string) *ClientWithResponses {
 		c.Client = &http.Client{Transport: tr}
 		return nil
 	}
-	var api *ClientWithResponses
-	var err error
 
-	if insecure {
-		api, err = NewClientWithResponses(url, skip_cert_verify)
-	} else {
-		api, err = NewClientWithResponses(url)
+	auth_handler := func(ctx context.Context, req *http.Request) error {
+		req.Header.Add("Authorization", "Bearer "+*auth_token)
+		return nil
 	}
+
+	options := make([]ClientOption, 0, 2)
+	if insecure {
+		options = append(options, skip_cert_verify)
+	}
+	if auth_token != nil {
+		options = append(options, WithRequestEditorFn(auth_handler))
+	}
+
+	api, err := NewClientWithResponses(url, options...)
 
 	if err != nil {
 		log.Fatalf("Unable to connect to API endpoint: %s", err)

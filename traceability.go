@@ -96,9 +96,8 @@ func FormatTraces(traces *[]RegisterTrace) string {
 	return string(traces_json)
 }
 
-func CheckProducts(files []string, url string) (bool, error) {
+func CheckProducts(files []string, api *ClientWithResponses) (bool, error) {
 	log.WithFields(log.Fields{"files": files}).Infof("Checking traces for %d product(s)...", len(files))
-	api := CreateClient(url)
 
 	var success = true
 
@@ -206,8 +205,7 @@ func TraceSignatureMatch(trace *Trace, signature string) bool {
 	return true
 }
 
-func RegisterTraces(traces []RegisterTrace, url string) error {
-	api := CreateClient(url)
+func RegisterTraces(traces []RegisterTrace, api *ClientWithResponses) error {
 
 	res, err := api.PutTracesV1WithResponse(context.Background(), traces)
 	if err != nil {
