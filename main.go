@@ -297,7 +297,7 @@ func ValidateInputs(input_string *string) *[]Input {
 			log.Fatalf("Invalid inputs string, expect a comma-separated list of NAME:HASH pairs, but got '%v'. Problem at: %v",
 				*input_string, parts)
 		}
-		inputs[i].ProductName = parts[0]
+		inputs[i].Name = parts[0]
 		inputs[i].Hash = parts[1]
 	}
 	return &inputs

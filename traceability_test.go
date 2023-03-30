@@ -169,12 +169,12 @@ func TestTraceNameOverride(t *testing.T) {
 func TestTraceInputs(t *testing.T) {
 	inputs := []Input{
 		Input{
-			ProductName: "abc",
-			Hash:        "010203",
+			Name: "abc",
+			Hash: "010203",
 		},
 		Input{
-			ProductName: "def",
-			Hash:        "040506",
+			Name: "def",
+			Hash: "040506",
 		},
 	}
 	traces := CreateProductTraces([]string{"test-data/test1.bin", "test-data/test2.bin"}, nil, ValidateIncludePattern(""),

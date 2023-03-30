@@ -18,7 +18,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func CreateProductTraces(files []string, name *string, include_pattern glob.Glob, inputs *[]Input, event TraceEvent, obsolescense *string, key any, cert any) []RegisterTrace {
+func CreateProductTraces(files []string, name *string, include_pattern glob.Glob, inputs *[]Input, event TraceEvent, obsolescence *string, key any, cert any) []RegisterTrace {
 	log.WithFields(log.Fields{"files": files}).Infof("Creating traces for %d product(s)...", len(files))
 	if name != nil && len(files) > 1 {
 		log.Warn("Product name was specified, but traces for multiple products were requested; the specified product name will be ignored.")
@@ -28,11 +28,11 @@ func CreateProductTraces(files []string, name *string, include_pattern glob.Glob
 	for i, filename := range files {
 		p := CreateProductInfo(filename, name, include_pattern, inputs)
 		traces[i] = RegisterTrace{
-			Event:               event,
-			HashAlgorithm:       string(hash_function),
-			ObsolescenceMessage: obsolescense,
-			Product:             p,
-			Signature:           CreateSignature(&p, key, cert),
+			Event:         event,
+			HashAlgorithm: string(hash_function),
+			Obsolescence:  obsolescence,
+			Product:       p,
+			Signature:     CreateSignature(&p, key, cert),
 		}
 	}
 	return traces
@@ -50,11 +50,10 @@ func CreateProductInfo(filename string, name *string, include_pattern glob.Glob,
 	// }
 	var p = Product{
 		// Contents: &[]Content{}, //FIXME: necessary to align signature rn, should be nil
-		Inputs:            inputs,
-		Name:              product_name,
-		Hash:              EncodeHash(hash),
-		Size:              size,
-		CreationTimestamp: time.Now(),
+		Inputs: inputs,
+		Name:   product_name,
+		Hash:   EncodeHash(hash),
+		Size:   size,
 	}
 
 	if strings.HasSuffix(filename, ".zip") {
@@ -76,13 +75,13 @@ func CreateSignature(p *Product, key any, cert any) Signature {
 		return Signature{}
 	}
 	data := CreateSignatureContents(p)
-	algorithm, signature, public_key := Sign(data, key, cert)
+	algorithm, signature, certificate := Sign(data, key, cert)
 
 	return Signature{
-		Algorithm: algorithm,
-		PublicKey: EncodeBytes(public_key),
-		Signature: EncodeBytes(signature),
-		Message:   string(data),
+		Algorithm:   algorithm,
+		Certificate: EncodeBytes(certificate),
+		Signature:   EncodeBytes(signature),
+		Message:     string(data),
 	}
 }
 
@@ -134,19 +133,19 @@ func CheckProduct(filename string, api *ClientWithResponses) (bool, error) {
 		var success = false
 
 		sort.Slice(*traces, func(i, j int) bool {
-			return (*traces)[i].RegisterTimestamp.Before((*traces)[j].RegisterTimestamp)
+			return (*traces)[i].Timestamp.Before((*traces)[j].Timestamp)
 		})
 
 		for _, t := range *traces {
 			check, status := ValidateTrace(&t, hash, hash_function)
 			obsolescence := ""
-			if t.ObsolescenceMessage != nil {
-				obsolescence = " => " + *t.ObsolescenceMessage
+			if t.Obsolescence != nil {
+				obsolescence = " => " + *t.Obsolescence
 			}
 
 			//TODO print signature information (e.g. issuer)
 			fmt.Printf("\t%s  %10s %20s  %-25s %s %s\n",
-				t.RegisterTimestamp.UTC().Format(time.RFC3339),
+				t.Timestamp.UTC().Format(time.RFC3339),
 				t.Event,
 				t.Origin,
 				status,
@@ -163,7 +162,7 @@ func CheckProduct(filename string, api *ClientWithResponses) (bool, error) {
 func ValidateTrace(t *Trace, hash []byte, hash_func Algorithm) (bool, string) {
 	log.WithFields(log.Fields{"trace": t}).Debug("Checking Trace")
 	sig_bytes, sig_err := DecodeBytes(t.Signature.Signature)
-	key_bytes, key_err := DecodeBytes(t.Signature.PublicKey)
+	cer_bytes, key_err := DecodeBytes(t.Signature.Certificate)
 	hash_str := EncodeHash(hash)
 
 	if hash_func != Algorithm(t.HashAlgorithm) {
@@ -177,7 +176,7 @@ func ValidateTrace(t *Trace, hash []byte, hash_func Algorithm) (bool, string) {
 		return true, "OK (Unsigned)"
 	} else if sig_err != nil || key_err != nil {
 		return false, "FAIL (Signature Decode)"
-	} else if !VerifySignature([]byte(t.Signature.Message), sig_bytes, key_bytes, t.Signature.Algorithm, t.RegisterTimestamp) {
+	} else if !VerifySignature([]byte(t.Signature.Message), sig_bytes, cer_bytes, t.Signature.Algorithm, t.Timestamp) {
 		return false, "FAIL (Signature Invalid)"
 	} else if !TraceSignatureMatch(t, t.Signature.Message) {
 		return false, "FAIL (Signature Mismatch)"

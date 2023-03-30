@@ -21,6 +21,10 @@ import (
 	"github.com/getkin/kin-openapi/openapi3"
 )
 
+const (
+	HTTPBearerScopes = "HTTPBearer.Scopes"
+)
+
 // Defines values for TraceEvent.
 const (
 	COPY     TraceEvent = "COPY"
@@ -42,27 +46,26 @@ type HTTPValidationError struct {
 
 // Input The input product used to derive a product from.
 type Input struct {
-	Hash        string `json:"hash"`
-	ProductName string `json:"product_name"`
+	Hash string `json:"hash"`
+	Name string `json:"name"`
 }
 
 // Product A product is either a file itself, or a collection of files.
 type Product struct {
-	Contents          *[]Content `json:"contents,omitempty"`
-	CreationTimestamp time.Time  `json:"creation_timestamp"`
-	Hash              string     `json:"hash"`
-	Inputs            *[]Input   `json:"inputs,omitempty"`
-	Name              string     `json:"name"`
-	Size              int64      `json:"size"`
+	Contents *[]Content `json:"contents,omitempty"`
+	Hash     string     `json:"hash"`
+	Inputs   *[]Input   `json:"inputs,omitempty"`
+	Name     string     `json:"name"`
+	Size     int64      `json:"size"`
 }
 
 // RegisterTrace A trace describes a specific event for a product used for validate incoming traces.
 type RegisterTrace struct {
-	Event               TraceEvent `json:"event"`
-	HashAlgorithm       string     `json:"hash_algorithm"`
-	ObsolescenceMessage *string    `json:"obsolescence_message,omitempty"`
-	Product             Product    `json:"product"`
-	Signature           Signature  `json:"signature"`
+	Event         TraceEvent `json:"event"`
+	HashAlgorithm string     `json:"hash_algorithm"`
+	Obsolescence  *string    `json:"obsolescence,omitempty"`
+	Product       Product    `json:"product"`
+	Signature     Signature  `json:"signature"`
 }
 
 // Signature The trace signature can be used to verify a products integrity.
@@ -71,30 +74,30 @@ type RegisterTrace struct {
 // The bytes being signed corespond to the trace's product dictionary, in lower-case,
 // compact JSON format (i.e. without whitespaces or linebreaks) and encoded in utf-8.
 type Signature struct {
-	Algorithm string `json:"algorithm"`
-	Message   string `json:"message"`
-	PublicKey string `json:"public_key"`
-	Signature string `json:"signature"`
+	Algorithm   string `json:"algorithm"`
+	Certificate string `json:"certificate"`
+	Message     string `json:"message"`
+	Signature   string `json:"signature"`
 }
 
 // Trace A trace describes a specific event for a product at a specific origin with primary id.
 type Trace struct {
-	Event               TraceEvent `json:"event"`
-	HashAlgorithm       string     `json:"hash_algorithm"`
-	Id                  string     `json:"id"`
-	ObsolescenceMessage *string    `json:"obsolescence_message,omitempty"`
-	Origin              string     `json:"origin"`
-	Product             Product    `json:"product"`
-	RegisterTimestamp   time.Time  `json:"register_timestamp"`
-	Signature           Signature  `json:"signature"`
+	Event         TraceEvent `json:"event"`
+	HashAlgorithm string     `json:"hash_algorithm"`
+	Id            string     `json:"id"`
+	Obsolescence  *string    `json:"obsolescence,omitempty"`
+	Origin        string     `json:"origin"`
+	Product       Product    `json:"product"`
+	Signature     Signature  `json:"signature"`
+	Timestamp     time.Time  `json:"timestamp"`
 }
 
 // TraceEvent A trace event describes how the trace comes into life.
 //
 // CREATE: A new product is generated.
-// COPY: A product is copied from to a new location.
-// DELETE: A product is removed from for a given reason.
-// OBSOLETE: A product is not recommended for use.
+// COPY: A product is copied to a new location.
+// DELETE: A product is removed from a location.
+// OBSOLETE: A product is no longer recommended for use.
 type TraceEvent string
 
 // TraceRegistration The results of a trace registration.
@@ -103,7 +106,7 @@ type TraceRegistration struct {
 	Success bool   `json:"success"`
 }
 
-// TraceValidation The results of a trace validation
+// TraceValidation The results of a trace validation.
 type TraceValidation struct {
 	Message string `json:"message"`
 	Success bool   `json:"success"`
@@ -687,7 +690,6 @@ type PutTracesV1Response struct {
 	Body         []byte
 	HTTPResponse *http.Response
 	JSON201      *TraceRegistration
-	JSON422      *HTTPValidationError
 }
 
 // Status returns HTTPResponse.Status
@@ -907,13 +909,6 @@ func ParsePutTracesV1Response(rsp *http.Response) (*PutTracesV1Response, error) 
 		}
 		response.JSON201 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
-		var dest HTTPValidationError
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON422 = &dest
-
 	}
 
 	return response, nil
@@ -1054,49 +1049,62 @@ func ParseValidateProductResponse(rsp *http.Response) (*ValidateProductResponse,
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"rgFyAvF4PB6P/wwAAP//RDZLUd8oAAA=",
+	"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",
+	"ZvN/AQAA//9l0hQXKiwAAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
