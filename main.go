@@ -27,6 +27,7 @@ type Command string
 
 const (
 	CHECK    Command = "CHECK"
+	HELP             = "HELP"
 	PRINT            = "PRINT"
 	REGISTER         = "REGISTER"
 	STATUS           = "STATUS"
@@ -34,45 +35,62 @@ const (
 )
 
 func (cmd Command) RequiresArgs() bool {
-	return !(cmd == STATUS || cmd == VERSION)
-}
-
-func (cmd Command) IsValid() bool {
 	switch cmd {
-	case CHECK, PRINT, REGISTER, STATUS, VERSION:
+	case CHECK, PRINT, REGISTER:
 		return true
 	}
 	return false
 }
 
-func PrintUsageAndExit() {
+func PrintUsageAndExit(examples bool, exitcode int) {
+	binary := os.Args[0]
 	fmt.Printf(`
 Usage:
   %s [OPTION...] COMMAND FILE...
 
 Available Commands:
   check    Check the integrity and history of a given product
-  print    Creates a new trace for a given product and prints it
-  register Creates a new trace for a given product and registers it
-  version  Prints the tool version and exits
+  help     Print usage and examples
+  print    Create a new trace for a given product and prints it
+  register Create a new trace for a given product and registers it
+  version  Display version and exit
 
 Available Options:
-`, os.Args[0])
+`, binary)
 	getopt.PrintDefaults()
-	os.Exit(1)
+	if examples {
+		fmt.Printf(`
+Examples:
+  Check a product for its integrity and trace history:
+    %s check s1a-iw-grd-vv-20230330t051016-20230330t051041-047869-05c07e-001.tiff 
+
+  Register a trace for a newly created product including its bands as content:
+    %s --auth TOKEN --cert certificate.crt --ckey private.pem --event create --include "bands/*.nc" register product.zip
+
+  Print the trace for a copy of a product but do not register it:
+    %s --cert certificate.crt --ckey private.pem --event copy print product.nc
+
+  Mark a product as obsolete:
+    %s --auth TOKEN --cert certificate.crt --ckey private.pem --obsolete "Product has been replaced by product2.zip" register product1.zip
+  
+`, binary, binary, binary, binary)
+	}
+	os.Exit(exitcode)
+}
+func PrintUsageAndFail() {
+	PrintUsageAndExit(false, 1)
 }
 
-// FIXME remove global, make argument
-var hash_function Algorithm = BLAKE3
-var insecure bool = true
-var version string
+var hash_function Algorithm = BLAKE3 // FIXME remove global, make argument
+
+var version string // Injected by build
 
 func main() {
 	log.SetLevel(log.WarnLevel)
 
 	hash_func := flag.String("algorithm", string(hash_function), "The selected checksum algorithm, can be any of the following: SHA256, SHA3, BLAKE3.")
-	key_file := flag.String("key", "", "The path to the PEM file holding the private key.")
-	cert_file := flag.String("cert", "", "The path to the PEM file holding the certificate.")
+	cert_file := flag.String("cert", "", "The path to the PEM file holding the x509 certificate.")
+	key_file := flag.String("ckey", "", "The path to the PEM file holding the private key for the certificate.")
 	url := flag.String("url", "https://64.225.133.55.nip.io/", "The address to the traceabilty service API endpoint.")
 	auth_token := flag.String("auth", "", "The bearer token for authentication against the API endpoint.")
 	event := flag.String("event", "CREATE", "The trace event, can be any of the following: CREATE, COPY, DELETE.")
@@ -82,11 +100,12 @@ func main() {
 	input_str := flag.String("input", "", "The input products based on which the product has been generated, as comma-separated pairs of NAME:HASH tuples.")
 	verbose := flag.Bool("verbose", false, "Turn on verbose output.")
 	debug := flag.Bool("debug", false, "Turn on debugging output.")
-	flag.BoolVar(&insecure, "insecure", insecure, "Ignore insecure SSL certificates when connecting to the API endpoint.")
+	insecure := flag.Bool("insecure", true, "Ignore insecure SSL certificates when connecting to the API endpoint.")
 
 	getopt.Alias("i", "include")
 	getopt.Alias("v", "verbose")
 	getopt.Alias("d", "debug")
+	getopt.Alias("e", "event")
 	getopt.Parse()
 
 	if *verbose {
@@ -107,7 +126,7 @@ func main() {
 
 	if (len(*key_file) != 0) != (len(*cert_file) != 0) {
 		log.Error("If a certificate file is provide, also the private key file is required and v.v.")
-		PrintUsageAndExit()
+		PrintUsageAndFail()
 	}
 
 	if obsolete != nil && len(*obsolete) > 0 {
@@ -121,16 +140,12 @@ func main() {
 	command_args := flag.Args()
 	if len(command_args) < 1 {
 		log.Error("No command provided.")
-		PrintUsageAndExit()
+		PrintUsageAndFail()
 	}
 	command := Command(strings.ToUpper(command_args[0]))
-	if !command.IsValid() {
-		log.Errorf("Invalid command '%v' provided.", command)
-		PrintUsageAndExit()
-	}
 	if command.RequiresArgs() && len(command_args) < 2 {
 		log.Error("No files provided for which traces should be generated/checked.")
-		PrintUsageAndExit()
+		PrintUsageAndFail()
 	}
 
 	files := command_args[1:]
@@ -139,27 +154,31 @@ func main() {
 	switch command {
 	case CHECK:
 		var check bool
-		check, err = CheckProducts(files, CreateClient(*url, auth_token))
+		api := CreateClient(*url, auth_token, *insecure)
+		check, err = CheckProducts(files, api)
 		if !check {
 			log.Error("Not all products could be validated successfully.")
 		}
+	case HELP:
+		PrintUsageAndExit(true, 0)
 	case PRINT:
 		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, obsolete, private_key, certificate)
 		fmt.Printf("%s\n", FormatTraces(&traces))
 	case REGISTER:
 		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, obsolete, private_key, certificate)
-		err = RegisterTraces(traces, CreateClient(*url, auth_token))
+		api := CreateClient(*url, auth_token, *insecure)
+		err = RegisterTraces(traces, api)
 		if err != nil {
 			log.Warn("Traces could not be registered, dumping for recovery.")
 			fmt.Printf("%s\n", FormatTraces(&traces))
 		}
 	case STATUS:
-		err = CheckStatus(*url)
+		err = CheckStatus(*url, *insecure)
 	case VERSION:
 		fmt.Printf("CDAS Trace CLI Version: %s\n", version)
 	default:
 		log.Errorf("Unknown command '%s'.\n", command_args[0])
-		PrintUsageAndExit()
+		PrintUsageAndFail()
 	}
 
 	if err != nil {
@@ -168,10 +187,10 @@ func main() {
 	}
 }
 
-func CheckStatus(url string) error {
+func CheckStatus(url string, insecure bool) error {
 	log.Infof("Checking API endpoint at %s", url)
 
-	api := CreateClient(url, nil)
+	api := CreateClient(url, nil, insecure)
 
 	res, err := api.PingStatusGetWithResponse(context.Background())
 	if err != nil {
@@ -186,7 +205,7 @@ func CheckStatus(url string) error {
 	return fmt.Errorf("Invalid response from service: %s", res.Status())
 }
 
-func CreateClient(url string, auth_token *string) *ClientWithResponses {
+func CreateClient(url string, auth_token *string, insecure bool) *ClientWithResponses {
 	skip_cert_verify := func(c *Client) error {
 		tr := &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
