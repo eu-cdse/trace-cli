@@ -3,3 +3,4 @@ trace-cli
 trace-cli.exe
 *_x64_bin
 *.so
+release/
