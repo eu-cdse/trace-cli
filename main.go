@@ -104,6 +104,7 @@ func main() {
 	verbose := flag.Bool("verbose", false, "Turn on verbose output.")
 	debug := flag.Bool("debug", false, "Turn on debugging output.")
 	insecure := flag.Bool("insecure", true, "Ignore insecure SSL certificates when connecting to the API endpoint.")
+	stdin := flag.Bool("stdin", false, "Read from STDIN stream instead of FILE arguments")
 
 	getopt.Alias("i", "include")
 	getopt.Alias("v", "verbose")
@@ -146,8 +147,12 @@ func main() {
 		PrintUsageAndFail()
 	}
 	command := Command(strings.ToUpper(command_args[0]))
-	if command.RequiresArgs() && len(command_args) < 2 {
+	if command.RequiresArgs() && (len(command_args) < 2 && !*stdin) {
 		log.Error("No files provided for which traces should be generated/checked.")
+		PrintUsageAndFail()
+	}
+	if len(command_args) > 1 && *stdin {
+		log.Error("Data can either be read from STDIN or from FILE..., but not both.")
 		PrintUsageAndFail()
 	}
 
@@ -156,6 +161,9 @@ func main() {
 	var err error
 	switch command {
 	case CHECK:
+		if *stdin {
+			log.Warn("STDIN processing not supported for check")
+		}
 		var check bool
 		api := CreateClient(*url, auth_token, *insecure)
 		check, err = CheckProducts(files, api)
@@ -165,6 +173,9 @@ func main() {
 	case HELP:
 		PrintUsageAndExit(true, 0)
 	case PRINT:
+		if *stdin {
+			log.Warn("STDIN processing not supported for print")
+		}
 		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, obsolete, private_key, certificate)
 		fmt.Printf("%s\n", FormatTraces(&traces))
 	case PUBLISH:
@@ -175,7 +186,11 @@ func main() {
 			break
 		}
 		var traces []RegisterTrace
-		traces, err = ReadProductTraces(readers...)
+		if *stdin {
+			err = ReadProductTracesAppend(os.Stdin, &traces)
+		} else {
+			traces, err = ReadProductTraces(readers...)
+		}
 		if err != nil {
 			break
 		}
@@ -186,6 +201,9 @@ func main() {
 			fmt.Printf("%s\n", FormatTraces(&traces))
 		}
 	case REGISTER:
+		if *stdin {
+			log.Warn("STDIN processing not supported for register")
+		}
 		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, obsolete, private_key, certificate)
 		api := CreateClient(*url, auth_token, *insecure)
 		err = RegisterTraces(traces, api)
