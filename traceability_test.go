@@ -184,3 +184,31 @@ func TestTraceInputs(t *testing.T) {
 	expectArrayEqual(inputs, *traces[0].Product.Inputs, t)
 	expectArrayEqual(inputs, *traces[1].Product.Inputs, t)
 }
+
+func TestReadTraces(t *testing.T) {
+	expected := CreateProductTraces([]string{"test-data/test1.bin"}, nil, ValidateIncludePattern(""),
+		nil, COPY, nil, nil, nil)
+	output := FormatTraces(&expected)
+	actual, err := ReadProductTraces(strings.NewReader(output))
+	ExpectNoErr(err, t)
+	expectArrayEqual(expected, actual, t)
+}
+
+func TestReadTracesMulitple(t *testing.T) {
+	input1 := CreateProductTraces([]string{"test-data/test1.bin"}, nil, ValidateIncludePattern(""),
+		nil, COPY, nil, nil, nil)
+	input2 := CreateProductTraces([]string{"test-data/test2.bin"}, nil, ValidateIncludePattern(""),
+		nil, COPY, nil, nil, nil)
+
+	var expected []RegisterTrace
+	expected = append(expected, input1[:]...)
+	expected = append(expected, input2[:]...)
+	expectEqual(2, len(expected), t)
+
+	output1 := FormatTraces(&input1)
+	output2 := FormatTraces(&input2)
+
+	actual, err := ReadProductTraces(strings.NewReader(output1), strings.NewReader(output2))
+	ExpectNoErr(err, t)
+	expectArrayEqual(expected, actual, t)
+}

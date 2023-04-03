@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -17,6 +18,27 @@ import (
 	"github.com/gobwas/glob"
 	log "github.com/sirupsen/logrus"
 )
+
+func ReadProductTraces(readers ...io.Reader) ([]RegisterTrace, error) {
+	traces := make([]RegisterTrace, 0, len(readers))
+	var err error
+	for _, reader := range readers {
+		ReadProductTracesAppend(reader, &traces)
+	}
+	return traces, err
+}
+
+func ReadProductTracesAppend(reader io.Reader, traces *[]RegisterTrace) error {
+	var t []RegisterTrace
+	decoder := json.NewDecoder(reader)
+	err := decoder.Decode(&t)
+	if err != nil {
+		return err
+	}
+	// we only append traces here, this does not check for duplicates
+	*traces = append(*traces, t...)
+	return nil
+}
 
 func CreateProductTraces(files []string, name *string, include_pattern glob.Glob, inputs *[]Input, event TraceEvent, obsolescence *string, key any, cert any) []RegisterTrace {
 	log.WithFields(log.Fields{"files": files}).Infof("Creating traces for %d product(s)...", len(files))

@@ -12,6 +12,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -29,6 +30,7 @@ const (
 	CHECK    Command = "CHECK"
 	HELP             = "HELP"
 	PRINT            = "PRINT"
+	PUBLISH          = "PUBLISH"
 	REGISTER         = "REGISTER"
 	STATUS           = "STATUS"
 	VERSION          = "VERSION"
@@ -36,7 +38,7 @@ const (
 
 func (cmd Command) RequiresArgs() bool {
 	switch cmd {
-	case CHECK, PRINT, REGISTER:
+	case CHECK, PRINT, REGISTER, PUBLISH:
 		return true
 	}
 	return false
@@ -49,10 +51,11 @@ Usage:
   %s [OPTION...] COMMAND FILE...
 
 Available Commands:
-  check    Check the integrity and history of a given product
+  check    Check the integrity and history of a given FILE
   help     Print usage and examples
-  print    Create a new trace for a given product and prints it
-  register Create a new trace for a given product and registers it
+  print    Create a new trace for a given FILE and print it, but do not register it
+  publish  Register an existing trace, e.g. created by print, and passed as FILE
+  register Create a new trace for a given FILE and register it
   version  Display version and exit
 
 Available Options:
@@ -164,6 +167,24 @@ func main() {
 	case PRINT:
 		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, obsolete, private_key, certificate)
 		fmt.Printf("%s\n", FormatTraces(&traces))
+	case PUBLISH:
+		// todo print warning if arguments were set that are not used?
+		var readers []io.Reader
+		readers, err = OpenFiles(files)
+		if err != nil {
+			break
+		}
+		var traces []RegisterTrace
+		traces, err = ReadProductTraces(readers...)
+		if err != nil {
+			break
+		}
+		api := CreateClient(*url, auth_token, *insecure)
+		err = RegisterTraces(traces, api)
+		if err != nil {
+			log.Warn("Traces could not be registered, dumping for recovery.")
+			fmt.Printf("%s\n", FormatTraces(&traces))
+		}
 	case REGISTER:
 		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, obsolete, private_key, certificate)
 		api := CreateClient(*url, auth_token, *insecure)
@@ -320,4 +341,16 @@ func ValidateInputs(input_string *string) *[]Input {
 		inputs[i].Hash = parts[1]
 	}
 	return &inputs
+}
+
+func OpenFiles(files []string) ([]io.Reader, error) {
+	readers := make([]io.Reader, 0, len(files))
+	for _, file := range files {
+		r, err := os.Open(file)
+		if err != nil {
+			return readers, err
+		}
+		readers = append(readers, r)
+	}
+	return readers, nil
 }
