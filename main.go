@@ -161,12 +161,12 @@ func main() {
 	var err error
 	switch command {
 	case CHECK:
-		if *stdin {
-			log.Warn("STDIN processing not supported for check")
-		}
 		var check bool
+		var names []string
+		var readers []io.Reader
+		readers, names, err = OpenFilesOrStdin(files, *stdin)
 		api := CreateClient(*url, auth_token, *insecure)
-		check, err = CheckProducts(files, api)
+		check, err = CheckProducts(readers, names, api)
 		if !check {
 			log.Error("Not all products could be validated successfully.")
 		}
@@ -181,16 +181,12 @@ func main() {
 	case PUBLISH:
 		// todo print warning if arguments were set that are not used?
 		var readers []io.Reader
-		readers, err = OpenFiles(files)
+		readers, _, err = OpenFilesOrStdin(files, *stdin)
 		if err != nil {
 			break
 		}
 		var traces []RegisterTrace
-		if *stdin {
-			err = ReadProductTracesAppend(os.Stdin, &traces)
-		} else {
-			traces, err = ReadProductTraces(readers...)
-		}
+		traces, err = ReadProductTraces(readers...)
 		if err != nil {
 			break
 		}
@@ -361,14 +357,23 @@ func ValidateInputs(input_string *string) *[]Input {
 	return &inputs
 }
 
-func OpenFiles(files []string) ([]io.Reader, error) {
+func OpenFilesOrStdin(files []string, stdin bool) ([]io.Reader, []string, error) {
+	if stdin {
+		return []io.Reader{os.Stdin}, []string{"STDIN"}, nil
+	}
+	return OpenFiles(files)
+}
+
+func OpenFiles(files []string) ([]io.Reader, []string, error) {
 	readers := make([]io.Reader, 0, len(files))
+	names := make([]string, 0, len(files))
 	for _, file := range files {
 		r, err := os.Open(file)
 		if err != nil {
-			return readers, err
+			return readers, names, err
 		}
 		readers = append(readers, r)
+		names = append(names, file)
 	}
-	return readers, nil
+	return readers, names, nil
 }

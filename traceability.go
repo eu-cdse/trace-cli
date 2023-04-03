@@ -117,13 +117,13 @@ func FormatTraces(traces *[]RegisterTrace) string {
 	return string(traces_json)
 }
 
-func CheckProducts(files []string, api *ClientWithResponses) (bool, error) {
-	log.WithFields(log.Fields{"files": files}).Infof("Checking traces for %d product(s)...", len(files))
+func CheckProducts(readers []io.Reader, names []string, api *ClientWithResponses) (bool, error) {
+	log.WithFields(log.Fields{"files": names}).Infof("Checking traces for %d product(s)...", len(names))
 
 	var success = true
 
-	for _, filename := range files {
-		check, err := CheckProduct(filename, api)
+	for i, _ := range readers {
+		check, err := CheckProduct(readers[i], names[i], api)
 		if err != nil {
 			return false, err
 		}
@@ -132,9 +132,9 @@ func CheckProducts(files []string, api *ClientWithResponses) (bool, error) {
 	return success, nil
 }
 
-func CheckProduct(filename string, api *ClientWithResponses) (bool, error) {
-	log.Debugf("Checking traces for %s", filename)
-	hash, _ := HashFile(filename)
+func CheckProduct(reader io.Reader, name string, api *ClientWithResponses) (bool, error) {
+	log.Debugf("Checking traces for %s", name)
+	hash := HashData(reader, hash_function)
 	res, err := api.SearchHashV1WithResponse(context.Background(), EncodeHash(hash))
 	if err != nil {
 		return false, fmt.Errorf("Unable to call API endpoint: %v", err)
@@ -142,16 +142,16 @@ func CheckProduct(filename string, api *ClientWithResponses) (bool, error) {
 
 	if res.JSON200 == nil {
 		if res.StatusCode() == 404 {
-			log.Errorf("No traces found for %s %s: %s\n", filename, EncodeHash(hash), string(res.Body))
+			log.Errorf("No traces found for %s %s: %s\n", name, EncodeHash(hash), string(res.Body))
 			return false, nil
 		}
 		return false, fmt.Errorf("Invalid response from service: %s\n%s", res.Status(), string(res.Body))
 	}
 	if traces := res.JSON200; traces == nil || len(*traces) == 0 {
-		fmt.Printf("%s %s\tno traces found for checksum!\n", EncodeHash(hash), filename)
+		fmt.Printf("%s %s\tno traces found for checksum!\n", EncodeHash(hash), name)
 		//TODO also try other hash algorithms
 	} else {
-		fmt.Printf("%s %s\tfound %d traces:\n", EncodeHash(hash), filename, len(*traces))
+		fmt.Printf("%s %s\tfound %d traces:\n", EncodeHash(hash), name, len(*traces))
 		var success = false
 
 		sort.Slice(*traces, func(i, j int) bool {
