@@ -121,12 +121,16 @@ func main() {
 
 	log.Infof("CDAS Trace CLI %s", version)
 
-	trace_event := TraceEvent(strings.ToUpper(*event)).Validate()
 	hash_function = Algorithm(strings.ToUpper(*hash_func)).Validate()
-	include_pattern := ValidateIncludePattern(*include_glob)
-	inputs := ValidateInputs(input_str)
 	private_key := ValidateKeyFile(*key_file)
 	certificate := ValidateCertFile(*cert_file)
+
+	tmpl := TraceTemplate{
+		Name:            name,
+		Event:           TraceEvent(strings.ToUpper(*event)).Validate(),
+		Include_Pattern: ValidateIncludePattern(*include_glob),
+		Inputs:          ValidateInputs(input_str),
+	}
 
 	if (len(*key_file) != 0) != (len(*cert_file) != 0) {
 		log.Error("If a certificate file is provide, also the private key file is required and v.v.")
@@ -135,10 +139,11 @@ func main() {
 
 	if obsolete != nil && len(*obsolete) > 0 {
 		log.Infof("Marking products as OBSOLETE with reason '%s'", *obsolete)
-		trace_event = OBSOLETE
+		tmpl.Event = OBSOLETE
+		tmpl.Obsolescence = obsolete
 	} else {
 		// Explicitly mark as nil to not send it to API
-		obsolete = nil
+		tmpl.Obsolescence = nil
 	}
 
 	command_args := flag.Args()
@@ -176,7 +181,8 @@ func main() {
 		if *stdin {
 			log.Warn("STDIN processing not supported for print")
 		}
-		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, obsolete, private_key, certificate)
+
+		traces := CreateProductTraces(files, &tmpl, private_key, certificate)
 		fmt.Printf("%s\n", FormatTraces(&traces))
 	case PUBLISH:
 		// todo print warning if arguments were set that are not used?
@@ -200,7 +206,7 @@ func main() {
 		if *stdin {
 			log.Warn("STDIN processing not supported for register")
 		}
-		traces := CreateProductTraces(files, name, include_pattern, inputs, trace_event, obsolete, private_key, certificate)
+		traces := CreateProductTraces(files, &tmpl, private_key, certificate)
 		api := CreateClient(*url, auth_token, *insecure)
 		err = RegisterTraces(traces, api)
 		if err != nil {

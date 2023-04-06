@@ -141,18 +141,18 @@ func TestCheckTraceChecksumContent(t *testing.T) {
 
 func TestTraceName(t *testing.T) {
 	name := "asdf"
-	traces := CreateProductTraces([]string{"test-data/test1.bin"}, &name, ValidateIncludePattern(""), nil, COPY, nil, nil, nil)
+	traces := CreateProductTraces([]string{"test-data/test1.bin"}, &TraceTemplate{Name: &name}, nil, nil)
 	expectEqual(1, len(traces), t)
 	expectEqual("asdf", traces[0].Product.Name, t)
 }
 
 func TestTraceNameDefault(t *testing.T) {
 	name := ""
-	traces := CreateProductTraces([]string{"test-data/test1.bin"}, &name, ValidateIncludePattern(""), nil, COPY, nil, nil, nil)
+	traces := CreateProductTraces([]string{"test-data/test1.bin"}, &TraceTemplate{Name: &name}, nil, nil)
 	expectEqual(1, len(traces), t)
 	expectEqual("test1.bin", traces[0].Product.Name, t)
 
-	traces = CreateProductTraces([]string{"test-data/test1.bin"}, nil, ValidateIncludePattern(""), nil, COPY, nil, nil, nil)
+	traces = CreateProductTraces([]string{"test-data/test1.bin"}, &TraceTemplate{}, nil, nil)
 	expectEqual(1, len(traces), t)
 	expectEqual("test1.bin", traces[0].Product.Name, t)
 
@@ -160,7 +160,7 @@ func TestTraceNameDefault(t *testing.T) {
 
 func TestTraceNameOverride(t *testing.T) {
 	name := "asdf"
-	traces := CreateProductTraces([]string{"test-data/test1.bin", "test-data/test2.bin"}, &name, ValidateIncludePattern(""), nil, COPY, nil, nil, nil)
+	traces := CreateProductTraces([]string{"test-data/test1.bin", "test-data/test2.bin"}, &TraceTemplate{Name: &name}, nil, nil)
 	expectEqual(2, len(traces), t)
 	expectEqual("test1.bin", traces[0].Product.Name, t)
 	expectEqual("test2.bin", traces[1].Product.Name, t)
@@ -177,8 +177,7 @@ func TestTraceInputs(t *testing.T) {
 			Hash: "040506",
 		},
 	}
-	traces := CreateProductTraces([]string{"test-data/test1.bin", "test-data/test2.bin"}, nil, ValidateIncludePattern(""),
-		&inputs, COPY, nil, nil, nil)
+	traces := CreateProductTraces([]string{"test-data/test1.bin", "test-data/test2.bin"}, &TraceTemplate{Inputs: &inputs}, nil, nil)
 	expectEqual(2, len(traces), t)
 	// inputs are used for all products
 	expectArrayEqual(inputs, *traces[0].Product.Inputs, t)
@@ -186,8 +185,7 @@ func TestTraceInputs(t *testing.T) {
 }
 
 func TestReadTraces(t *testing.T) {
-	expected := CreateProductTraces([]string{"test-data/test1.bin"}, nil, ValidateIncludePattern(""),
-		nil, COPY, nil, nil, nil)
+	expected := CreateProductTraces([]string{"test-data/test1.bin"}, &TraceTemplate{}, nil, nil)
 	output := FormatTraces(&expected)
 	actual, err := ReadProductTraces(strings.NewReader(output))
 	ExpectNoErr(err, t)
@@ -195,10 +193,8 @@ func TestReadTraces(t *testing.T) {
 }
 
 func TestReadTracesMulitple(t *testing.T) {
-	input1 := CreateProductTraces([]string{"test-data/test1.bin"}, nil, ValidateIncludePattern(""),
-		nil, COPY, nil, nil, nil)
-	input2 := CreateProductTraces([]string{"test-data/test2.bin"}, nil, ValidateIncludePattern(""),
-		nil, COPY, nil, nil, nil)
+	input1 := CreateProductTraces([]string{"test-data/test1.bin"}, &TraceTemplate{}, nil, nil)
+	input2 := CreateProductTraces([]string{"test-data/test2.bin"}, &TraceTemplate{}, nil, nil)
 
 	var expected []RegisterTrace
 	expected = append(expected, input1[:]...)

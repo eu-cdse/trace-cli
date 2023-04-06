@@ -40,46 +40,51 @@ func ReadProductTracesAppend(reader io.Reader, traces *[]RegisterTrace) error {
 	return nil
 }
 
-func CreateProductTraces(files []string, name *string, include_pattern glob.Glob, inputs *[]Input, event TraceEvent, obsolescence *string, key any, cert any) []RegisterTrace {
+type TraceTemplate struct {
+	Name            *string
+	Include_Pattern glob.Glob
+	Inputs          *[]Input
+	Event           TraceEvent
+	Obsolescence    *string
+}
+
+func CreateProductTraces(files []string, template *TraceTemplate, key any, cert any) []RegisterTrace {
 	log.WithFields(log.Fields{"files": files}).Infof("Creating traces for %d product(s)...", len(files))
-	if name != nil && len(files) > 1 {
+	if template.Name != nil && len(files) > 1 {
 		log.Warn("Product name was specified, but traces for multiple products were requested; the specified product name will be ignored.")
-		name = nil
+		template.Name = nil
 	}
 	traces := make([]RegisterTrace, len(files))
 	for i, filename := range files {
-		p := CreateProductInfo(filename, name, include_pattern, inputs)
+		p := CreateProductInfo(filename, template)
 		traces[i] = RegisterTrace{
-			Event:         event,
+			Event:         template.Event,
 			HashAlgorithm: string(hash_function),
-			Obsolescence:  obsolescence,
+			Obsolescence:  template.Obsolescence,
 			Product:       p,
 			Signature:     CreateSignature(&p, key, cert),
 		}
 	}
 	return traces
 }
-func CreateProductInfo(filename string, name *string, include_pattern glob.Glob, inputs *[]Input) Product {
+func CreateProductInfo(filename string, template *TraceTemplate) Product {
 	hash, size := HashFile(filename)
 	var product_name string
-	if name != nil && len(*name) > 0 {
-		product_name = *name
+	if template.Name != nil && len(*template.Name) > 0 {
+		product_name = *template.Name
 	} else {
 		product_name = filepath.Base(filename)
 	}
-	// if inputs == nil {
-	// 	inputs = &[]Input{} //FIXME: necessary to align signature rn, should be nil
-	// }
+
 	var p = Product{
-		// Contents: &[]Content{}, //FIXME: necessary to align signature rn, should be nil
-		Inputs: inputs,
+		Inputs: template.Inputs,
 		Name:   product_name,
 		Hash:   EncodeHash(hash),
 		Size:   size,
 	}
 
 	if strings.HasSuffix(filename, ".zip") {
-		contents := HashContents(filename, include_pattern)
+		contents := HashContents(filename, template.Include_Pattern)
 		content_list := make([]Content, len(*contents))
 		var i = 0
 		for path, hash := range *contents {
