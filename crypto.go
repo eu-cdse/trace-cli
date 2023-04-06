@@ -73,15 +73,26 @@ func HashFile(filename string) ([]byte, int64) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fi, err := file.Stat()
-	if err != nil {
-		log.Fatal(err)
-	}
-	size := fi.Size()
-	sum := HashData(file)
+	sum, size := HashStream(file)
 	log.Debugf("%x %s\n", sum, filename)
 
 	return sum, size
+}
+
+type ByteCounter struct {
+	Count int64
+}
+
+func (bc *ByteCounter) Write(p []byte) (n int, err error) {
+	count := len(p)
+	bc.Count += int64(count)
+	return count, nil
+}
+
+func HashStream(reader io.Reader) ([]byte, int64) {
+	bc := ByteCounter{}
+	sum := HashData(io.TeeReader(reader, &bc))
+	return sum, bc.Count
 }
 
 func HashString(data string, algorithm ...Algorithm) []byte {
