@@ -49,8 +49,7 @@ func TestHashFile(t *testing.T) {
 	expected_hash := "400a322239c83fbed043a8c9d898f2dd3d3634eeec0fab6fb0f577c1a56ada3a"
 	expected_size := int64(10240)
 
-	hash_function = BLAKE3
-	bytes, actual_size := HashFile(file)
+	bytes, actual_size := HashFile(file, BLAKE3)
 	actual_hash := EncodeHash(bytes)
 
 	if actual_hash != expected_hash {
@@ -69,14 +68,13 @@ func TestHashContents(t *testing.T) {
 		"testdir/test3.bin": "a12959c6398697a95c097eebef1656ef686c92b1db60d537a942b6ce735f0285",
 	}
 
-	hash_function = BLAKE3
-	actual := *HashContents(file, glob.MustCompile("*"))
+	actual := *HashContents(file, glob.MustCompile("*"), BLAKE3)
 
 	if !reflect.DeepEqual(actual, expected) {
 		t.Fatalf("Results don't match. Expected '%v', Actual %v", expected, actual)
 	}
 
-	actual_file_pattern := *HashContents(file, glob.MustCompile("*.bin"))
+	actual_file_pattern := *HashContents(file, glob.MustCompile("*.bin"), BLAKE3)
 
 	if !reflect.DeepEqual(actual_file_pattern, expected) {
 		t.Fatalf("Results don't match. Expected '%v', Actual %v", expected, actual_file_pattern)
@@ -89,8 +87,7 @@ func TestHashContentsPatternDir(t *testing.T) {
 		"testdir/test3.bin": "a12959c6398697a95c097eebef1656ef686c92b1db60d537a942b6ce735f0285",
 	}
 
-	hash_function = BLAKE3
-	actual := *HashContents(file, glob.MustCompile("testdir/*.bin"))
+	actual := *HashContents(file, glob.MustCompile("testdir/*.bin"), BLAKE3)
 
 	if !reflect.DeepEqual(actual, expected) {
 		t.Fatalf("Results don't match. Expected '%v', Actual %v", expected, actual)

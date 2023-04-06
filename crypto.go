@@ -38,7 +38,7 @@ func DecodeHash(checksum string) ([]byte, error) {
 	return hex.DecodeString(checksum)
 }
 
-func HashContents(filename string, include_pattern glob.Glob) *map[string]string {
+func HashContents(filename string, include_pattern glob.Glob, algorithm Algorithm) *map[string]string {
 	r, err := zip.OpenReader(filename)
 	if err != nil {
 		log.Fatal(err)
@@ -60,7 +60,7 @@ func HashContents(filename string, include_pattern glob.Glob) *map[string]string
 		if err != nil {
 			log.Fatal(err)
 		}
-		sum := HashData(rc)
+		sum := HashData(rc, algorithm)
 		log.Debugf("%x %s\n", sum, f.Name)
 		contents[f.Name] = EncodeHash(sum)
 		rc.Close()
@@ -68,12 +68,12 @@ func HashContents(filename string, include_pattern glob.Glob) *map[string]string
 	return &contents
 }
 
-func HashFile(filename string) ([]byte, int64) {
+func HashFile(filename string, algorithm Algorithm) ([]byte, int64) {
 	file, err := os.Open(filename)
 	if err != nil {
 		log.Fatal(err)
 	}
-	sum, size := HashStream(file)
+	sum, size := HashStream(file, algorithm)
 	log.Debugf("%x %s\n", sum, filename)
 
 	return sum, size
@@ -89,26 +89,21 @@ func (bc *ByteCounter) Write(p []byte) (n int, err error) {
 	return count, nil
 }
 
-func HashStream(reader io.Reader) ([]byte, int64) {
+func HashStream(reader io.Reader, algorithm Algorithm) ([]byte, int64) {
 	bc := ByteCounter{}
-	sum := HashData(io.TeeReader(reader, &bc))
+	sum := HashData(io.TeeReader(reader, &bc), algorithm)
 	return sum, bc.Count
 }
 
-func HashString(data string, algorithm ...Algorithm) []byte {
-	return HashData(strings.NewReader(data), algorithm...)
+func HashString(data string, algorithm Algorithm) []byte {
+	return HashData(strings.NewReader(data), algorithm)
 }
-func HashBytes(data []byte, algorithm ...Algorithm) []byte {
-	return HashData(bytes.NewReader(data), algorithm...)
+func HashBytes(data []byte, algorithm Algorithm) []byte {
+	return HashData(bytes.NewReader(data), algorithm)
 }
 
-func HashData(src io.Reader, algorithm ...Algorithm) []byte {
-	var algo = hash_function
-	if len(algorithm) > 0 {
-		algo = algorithm[0]
-	}
-
-	switch algo {
+func HashData(src io.Reader, algorithm Algorithm) []byte {
+	switch algorithm {
 	case SHA3:
 		hasher := sha3.New256()
 		io.Copy(hasher, src)

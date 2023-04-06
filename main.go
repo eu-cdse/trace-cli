@@ -24,6 +24,8 @@ import (
 	"golang.org/x/term"
 )
 
+var version string // Injected by build
+
 type Command string
 
 const (
@@ -84,14 +86,10 @@ func PrintUsageAndFail() {
 	PrintUsageAndExit(false, 1)
 }
 
-var hash_function Algorithm = BLAKE3 // FIXME remove global, make argument
-
-var version string // Injected by build
-
 func main() {
 	log.SetLevel(log.WarnLevel)
 
-	hash_func := flag.String("algorithm", string(hash_function), "The selected checksum algorithm, can be any of the following: SHA256, SHA3, BLAKE3.")
+	hash_func := flag.String("algorithm", BLAKE3, "The selected checksum algorithm, can be any of the following: SHA256, SHA3, BLAKE3.")
 	cert_file := flag.String("cert", "", "The path to the PEM file holding the x509 certificate.")
 	key_file := flag.String("ckey", "", "The path to the PEM file holding the private key for the certificate.")
 	url := flag.String("url", "https://64.225.133.55.nip.io/", "The address to the traceabilty service API endpoint.")
@@ -121,7 +119,7 @@ func main() {
 
 	log.Infof("CDAS Trace CLI %s", version)
 
-	hash_function = Algorithm(strings.ToUpper(*hash_func)).Validate()
+	hash_function := Algorithm(strings.ToUpper(*hash_func)).Validate()
 	private_key := ValidateKeyFile(*key_file)
 	certificate := ValidateCertFile(*cert_file)
 
@@ -171,7 +169,7 @@ func main() {
 		var readers []io.Reader
 		readers, names, err = OpenFilesOrStdin(files, *stdin)
 		api := CreateClient(*url, auth_token, *insecure)
-		check, err = CheckProducts(readers, names, api)
+		check, err = CheckProducts(readers, names, api, hash_function)
 		if !check {
 			log.Error("Not all products could be validated successfully.")
 		}
@@ -182,7 +180,7 @@ func main() {
 			log.Warn("STDIN processing not supported for print")
 		}
 
-		traces := CreateProductTraces(files, &tmpl, private_key, certificate)
+		traces := CreateProductTraces(files, &tmpl, hash_function, private_key, certificate)
 		fmt.Printf("%s\n", FormatTraces(&traces))
 	case PUBLISH:
 		// todo print warning if arguments were set that are not used?
@@ -206,7 +204,7 @@ func main() {
 		if *stdin {
 			log.Warn("STDIN processing not supported for register")
 		}
-		traces := CreateProductTraces(files, &tmpl, private_key, certificate)
+		traces := CreateProductTraces(files, &tmpl, hash_function, private_key, certificate)
 		api := CreateClient(*url, auth_token, *insecure)
 		err = RegisterTraces(traces, api)
 		if err != nil {

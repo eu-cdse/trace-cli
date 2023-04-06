@@ -48,7 +48,7 @@ type TraceTemplate struct {
 	Obsolescence    *string
 }
 
-func CreateProductTraces(files []string, template *TraceTemplate, key any, cert any) []RegisterTrace {
+func CreateProductTraces(files []string, template *TraceTemplate, hasher Algorithm, key any, cert any) []RegisterTrace {
 	log.WithFields(log.Fields{"files": files}).Infof("Creating traces for %d product(s)...", len(files))
 	if template.Name != nil && len(files) > 1 {
 		log.Warn("Product name was specified, but traces for multiple products were requested; the specified product name will be ignored.")
@@ -56,10 +56,10 @@ func CreateProductTraces(files []string, template *TraceTemplate, key any, cert 
 	}
 	traces := make([]RegisterTrace, len(files))
 	for i, filename := range files {
-		p := CreateProductInfo(filename, template)
+		p := CreateProductInfo(filename, template, hasher)
 		traces[i] = RegisterTrace{
 			Event:         template.Event,
-			HashAlgorithm: string(hash_function),
+			HashAlgorithm: string(hasher),
 			Obsolescence:  template.Obsolescence,
 			Product:       p,
 			Signature:     CreateSignature(&p, key, cert),
@@ -67,8 +67,8 @@ func CreateProductTraces(files []string, template *TraceTemplate, key any, cert 
 	}
 	return traces
 }
-func CreateProductInfo(filename string, template *TraceTemplate) Product {
-	hash, size := HashFile(filename)
+func CreateProductInfo(filename string, template *TraceTemplate, hasher Algorithm) Product {
+	hash, size := HashFile(filename, hasher)
 	var product_name string
 	if template.Name != nil && len(*template.Name) > 0 {
 		product_name = *template.Name
@@ -84,7 +84,7 @@ func CreateProductInfo(filename string, template *TraceTemplate) Product {
 	}
 
 	if strings.HasSuffix(filename, ".zip") {
-		contents := HashContents(filename, template.Include_Pattern)
+		contents := HashContents(filename, template.Include_Pattern, hasher)
 		content_list := make([]Content, len(*contents))
 		var i = 0
 		for path, hash := range *contents {
@@ -122,13 +122,13 @@ func FormatTraces(traces *[]RegisterTrace) string {
 	return string(traces_json)
 }
 
-func CheckProducts(readers []io.Reader, names []string, api *ClientWithResponses) (bool, error) {
+func CheckProducts(readers []io.Reader, names []string, api *ClientWithResponses, hasher Algorithm) (bool, error) {
 	log.WithFields(log.Fields{"files": names}).Infof("Checking traces for %d product(s)...", len(names))
 
 	var success = true
 
 	for i, _ := range readers {
-		check, err := CheckProduct(readers[i], names[i], api)
+		check, err := CheckProduct(readers[i], names[i], api, hasher)
 		if err != nil {
 			return false, err
 		}
@@ -137,9 +137,9 @@ func CheckProducts(readers []io.Reader, names []string, api *ClientWithResponses
 	return success, nil
 }
 
-func CheckProduct(reader io.Reader, name string, api *ClientWithResponses) (bool, error) {
+func CheckProduct(reader io.Reader, name string, api *ClientWithResponses, hasher Algorithm) (bool, error) {
 	log.Debugf("Checking traces for %s", name)
-	hash := HashData(reader, hash_function)
+	hash := HashData(reader, hasher)
 	res, err := api.SearchHashV1WithResponse(context.Background(), EncodeHash(hash))
 	if err != nil {
 		return false, fmt.Errorf("Unable to call API endpoint: %v", err)
@@ -164,7 +164,7 @@ func CheckProduct(reader io.Reader, name string, api *ClientWithResponses) (bool
 		})
 
 		for _, t := range *traces {
-			check, status := ValidateTrace(&t, hash, hash_function)
+			check, status := ValidateTrace(&t, hash, hasher)
 			obsolescence := ""
 			if t.Obsolescence != nil {
 				obsolescence = " => " + *t.Obsolescence
