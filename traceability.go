@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"time"
@@ -226,9 +227,55 @@ func ContentChecksumMatch(contents *[]Content, checksum string) bool {
 	return false
 }
 
-func TraceSignatureMatch(trace *Trace, signature string) bool {
-	// TODO implement
-	return true
+type json_map map[string]interface{}
+
+func check_match(actual json_map, expected json_map, key string, required bool) bool {
+	e, e_ok := expected[key]
+	a, a_ok := actual[key]
+	if required {
+		// all must be present and match
+		return e_ok && a_ok && reflect.DeepEqual(a, e)
+	}
+	// must only match if present
+	return !a_ok || !e_ok || reflect.DeepEqual(a, e)
+}
+
+func TraceSignatureMatch(trace *Trace, message string) bool {
+	// check if signature was created with same version
+	current := CreateSignatureContents(&trace.Product)
+	if string(current) == message {
+		// return true
+	}
+	log.Debugf("Manually checking signature message %v", message)
+
+	// fallback check
+	var expected json_map
+	err := json.Unmarshal(current, &expected)
+	if err != nil {
+		log.Errorf("Failure decoding internal signature message: %v", err)
+		return false
+	}
+
+	var actual json_map
+	err = json.Unmarshal([]byte(message), &actual)
+	if err != nil {
+		log.Errorf("Failure decoding signature message: %v", err)
+		return false
+	}
+
+	// check if same but differently formatted
+	if reflect.DeepEqual(actual, expected) {
+		return true
+	}
+
+	// element by element compare
+	log.Debugf("Decoded signature message %v", actual)
+	return check_match(actual, expected, "hash", true) &&
+		check_match(actual, expected, "name", false) &&
+		check_match(actual, expected, "size", false) &&
+		check_match(actual, expected, "hash", false) &&
+		check_match(actual, expected, "contents", false) &&
+		check_match(actual, expected, "inputs", false)
 }
 
 func RegisterTraces(traces []RegisterTrace, api *ClientWithResponses) error {
