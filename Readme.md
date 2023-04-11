@@ -6,7 +6,7 @@ The general structure of the commandline tool follows the following pattern:
 ```
 ./trace-cli [OPTION...] COMMAND FILE...
 ```
-The `COMMAND` defines the primary operation to be carried out, e.g. generating traces or checking products, while the `OPTION` configures general or command-specific settings. The eventual `FILE` refer to the products to which the command is applied on (.e.g. to check a number of products for consistency). 
+The `COMMAND` defines the primary operation to be carried out, e.g. generating traces or checking products, while the `OPTION` configures general or command-specific settings. The eventual `FILE` refer to the products to which the command is applied on (.e.g. to check a number of products for consistency). The `help` command lists some example invocations.
 
 The various commands options are shown when invoking the commandline tool without any extra arguments:
 ```
