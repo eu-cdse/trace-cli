@@ -94,14 +94,14 @@ func main() {
 	key_file := flag.String("ckey", "", "The path to the PEM file holding the private key for the certificate.")
 	url := flag.String("url", "https://64.225.133.55.nip.io/", "The address to the traceabilty service API endpoint.")
 	auth_token := flag.String("auth", "", "The bearer token for authentication against the API endpoint.")
-	event := flag.String("event", "CREATE", "The trace event, can be any of the following: CREATE, COPY, DELETE.")
+	event := flag.String("event", "", "The trace event, can be any of the following: CREATE, COPY, DELETE.")
 	obsolete := flag.String("obsolete", "", "Creates an OBSOLETE trace with the given reason for the products.")
 	include_glob := flag.String("include", "*", "A glob pattern defining the elements within an archive to include.")
 	name := flag.String("name", "", "The product name for which the trace is generated. (default is the filename)")
 	input_str := flag.String("input", "", "The input products based on which the product has been generated, as comma-separated pairs of NAME:HASH tuples.")
 	verbose := flag.Bool("verbose", false, "Turn on verbose output.")
 	debug := flag.Bool("debug", false, "Turn on debugging output.")
-	insecure := flag.Bool("insecure", true, "Ignore insecure SSL certificates when connecting to the API endpoint.")
+	insecure := flag.Bool("insecure", false, "Ignore insecure SSL certificates when connecting to the API endpoint.")
 	stdin := flag.Bool("stdin", false, "Read from STDIN stream instead of FILE arguments")
 
 	getopt.Alias("i", "include")
@@ -125,7 +125,6 @@ func main() {
 
 	tmpl := TraceTemplate{
 		Name:            name,
-		Event:           TraceEvent(strings.ToUpper(*event)).Validate(),
 		Include_Pattern: ValidateIncludePattern(*include_glob),
 		Inputs:          ValidateInputs(input_str),
 	}
@@ -179,7 +178,7 @@ func main() {
 		if *stdin {
 			log.Warn("STDIN processing not supported for print")
 		}
-
+		tmpl.Event = TraceEvent(strings.ToUpper(*event)).Validate()
 		traces := CreateProductTraces(files, &tmpl, hash_function, private_key, certificate)
 		fmt.Printf("%s\n", FormatTraces(&traces))
 	case PUBLISH:
@@ -204,6 +203,7 @@ func main() {
 		if *stdin {
 			log.Warn("STDIN processing not supported for register")
 		}
+		tmpl.Event = TraceEvent(strings.ToUpper(*event)).Validate()
 		traces := CreateProductTraces(files, &tmpl, hash_function, private_key, certificate)
 		api := CreateClient(*url, auth_token, *insecure)
 		err = RegisterTraces(traces, api)
@@ -279,6 +279,8 @@ func (ev TraceEvent) Validate() TraceEvent {
 	case CREATE, COPY, DELETE:
 	case OBSOLETE:
 		log.Fatalf("Use --obsolete option to specifiy OBSOLETE traces.")
+	case TraceEvent(""):
+		log.Fatalf("Trace event undefined, please specify event using --event flag.")
 	default:
 		log.Fatalf("Unknown trace event '%s'", ev)
 	}
