@@ -178,7 +178,9 @@ func main() {
 		if *stdin {
 			log.Warn("STDIN processing not supported for print")
 		}
-		tmpl.Event = TraceEvent(strings.ToUpper(*event)).Validate()
+		if tmpl.Event == TraceEvent("") {
+			tmpl.Event = TraceEvent(strings.ToUpper(*event)).Validate()
+		}
 		traces := CreateProductTraces(files, &tmpl, hash_function, private_key, certificate)
 		fmt.Printf("%s\n", FormatTraces(&traces))
 	case PUBLISH:
@@ -203,7 +205,9 @@ func main() {
 		if *stdin {
 			log.Warn("STDIN processing not supported for register")
 		}
-		tmpl.Event = TraceEvent(strings.ToUpper(*event)).Validate()
+		if tmpl.Event == TraceEvent("") {
+			tmpl.Event = TraceEvent(strings.ToUpper(*event)).Validate()
+		}
 		traces := CreateProductTraces(files, &tmpl, hash_function, private_key, certificate)
 		api := CreateClient(*url, auth_token, *insecure)
 		err = RegisterTraces(traces, api)
