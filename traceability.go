@@ -63,8 +63,9 @@ func CreateProductTraces(files []string, template *TraceTemplate, hasher Algorit
 			HashAlgorithm: string(hasher),
 			Obsolescence:  template.Obsolescence,
 			Product:       p,
-			Signature:     CreateSignature(&p, key, cert),
 		}
+		sig := CreateSignature(&traces[i], key, cert)
+		traces[i].Signature = sig
 	}
 	return traces
 }
@@ -98,11 +99,11 @@ func CreateProductInfo(filename string, template *TraceTemplate, hasher Algorith
 	return p
 }
 
-func CreateSignature(p *Product, key any, cert any) Signature {
+func CreateSignature(t *RegisterTrace, key any, cert any) Signature {
 	if key == nil {
 		return Signature{}
 	}
-	data := CreateSignatureContents(p)
+	data := CreateSignatureContents(&t.Product, t.Event)
 	algorithm, signature, certificate := Sign(data, key, cert)
 
 	return Signature{
@@ -113,8 +114,20 @@ func CreateSignature(p *Product, key any, cert any) Signature {
 	}
 }
 
-func CreateSignatureContents(p *Product) []byte {
-	data, _ := json.Marshal(p)
+// wrapper to extend simple product
+// just putting the product in signature is not enough, at least trace event should be cloned
+// ideally we could use some common baseclass between RegisterTrace and Trace, but there is none.
+type SignatureContents struct {
+	Product
+	Event TraceEvent `json:"event"`
+}
+
+func CreateSignatureContents(p *Product, event TraceEvent) []byte {
+	contents := SignatureContents{*p, event}
+	data, err := json.Marshal(contents)
+	if err != nil {
+		log.Warnf("Unable to marshall trace content for signature: %v", err)
+	}
 	return data
 }
 
@@ -198,16 +211,18 @@ func ValidateTrace(t *Trace, hash []byte, hash_func Algorithm) (bool, string) {
 	} else if len(t.Product.Hash) == 0 || !(hash_str == t.Product.Hash ||
 		ContentChecksumMatch(t.Product.Contents, hash_str)) {
 		return false, "FAIL (Checksum Mismatch)"
-		// } else if size != int64(t.Product.Size) { //Filename check only works on main product
-		// 	check = "FAIL (Filesize Mismatch)"
 	} else if len(t.Signature.Signature) == 0 {
 		return true, "OK (Unsigned)"
 	} else if sig_err != nil || key_err != nil {
 		return false, "FAIL (Signature Decode)"
 	} else if !VerifySignature([]byte(t.Signature.Message), sig_bytes, cer_bytes, t.Signature.Algorithm, t.Timestamp) {
 		return false, "FAIL (Signature Invalid)"
-	} else if !TraceSignatureMatch(t, t.Signature.Message) {
+	} else if !SignatureTraceMatch(t, t.Signature.Message) {
 		return false, "FAIL (Signature Mismatch)"
+	} else if !SignatureOriginMatch() {
+		return false, "FAIL (Signature Origin)" // or OK (...)?
+	} else if !SignatureTimestampMatch() {
+		return false, "FAIL (Signature Expired)" // or OK (...)?
 	} else if t.Event == OBSOLETE {
 		return true, "OK (Obsolete)"
 	}
@@ -240,15 +255,17 @@ func check_match(actual json_map, expected json_map, key string, required bool) 
 	return !a_ok || !e_ok || reflect.DeepEqual(a, e)
 }
 
-func TraceSignatureMatch(trace *Trace, message string) bool {
+func SignatureTraceMatch(trace *Trace, message string) bool {
 	// check if signature was created with same version
-	current := CreateSignatureContents(&trace.Product)
+	current := CreateSignatureContents(&trace.Product, trace.Event)
 	if string(current) == message {
-		// return true
+		log.Debugf("Trace signature is exact match.")
+		return true
 	}
-	log.Debugf("Manually checking signature message %v", message)
 
-	// fallback check
+	// fallback fuzzy matching
+	log.Debugf("Fuzzy matching trace signature: %v\ncurrent: %v", message, string(current))
+
 	var expected json_map
 	err := json.Unmarshal(current, &expected)
 	if err != nil {
@@ -276,6 +293,16 @@ func TraceSignatureMatch(trace *Trace, message string) bool {
 		check_match(actual, expected, "hash", false) &&
 		check_match(actual, expected, "contents", false) &&
 		check_match(actual, expected, "inputs", false)
+}
+
+func SignatureOriginMatch() bool {
+	// TODO implement trace.Origin == signature.Origin
+	return true
+}
+
+func SignatureTimestampMatch() bool {
+	// TODO implement trace.RegistrationTime is within certificate.NotBefore+NotAfter
+	return true
 }
 
 func RegisterTraces(traces []RegisterTrace, api *ClientWithResponses) error {

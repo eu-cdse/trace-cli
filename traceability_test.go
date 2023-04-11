@@ -74,7 +74,8 @@ ug2G
 	trace := Trace{
 		Product:       product,
 		HashAlgorithm: "SHA256",
-		Signature:     CreateSignature(&product, private_key, certificate),
+		Signature: CreateSignature(&RegisterTrace{Product: product},
+			private_key, certificate),
 	}
 
 	hash_bytes, err := DecodeHash("abcd")
@@ -209,7 +210,7 @@ func TestReadTracesMulitple(t *testing.T) {
 	expectArrayEqual(expected, actual, t)
 }
 
-func TestTraceSignatureMatch(t *testing.T) {
+func TestSignatureTraceMatch(t *testing.T) {
 	trace := Trace{
 		Product: Product{
 			Hash: "01020304",
@@ -218,11 +219,11 @@ func TestTraceSignatureMatch(t *testing.T) {
 		},
 	}
 
-	message := string(CreateSignatureContents(&trace.Product))
-	expectEqual(true, TraceSignatureMatch(&trace, message), t)
+	message := string(CreateSignatureContents(&trace.Product, trace.Event))
+	expectEqual(true, SignatureTraceMatch(&trace, message), t)
 }
 
-func TestTraceSignatureMatchContents(t *testing.T) {
+func TestSignatureTraceMatchContents(t *testing.T) {
 	trace := Trace{
 		Product: Product{
 			Contents: &[]Content{
@@ -238,8 +239,8 @@ func TestTraceSignatureMatchContents(t *testing.T) {
 		},
 	}
 
-	message := string(CreateSignatureContents(&trace.Product))
-	expectEqual(true, TraceSignatureMatch(&trace, message), t)
+	message := string(CreateSignatureContents(&trace.Product, trace.Event))
+	expectEqual(true, SignatureTraceMatch(&trace, message), t)
 
 	message = `{
 		"hash": "",
@@ -248,16 +249,16 @@ func TestTraceSignatureMatchContents(t *testing.T) {
 			{"path": "jkl/abc.ef", "hash": "15161718"}
 		]
 		}`
-	expectEqual(true, TraceSignatureMatch(&trace, message), t)
+	expectEqual(true, SignatureTraceMatch(&trace, message), t)
 
 	message = `{
 		"hash": "",
 		"contents": []
 		}`
-	expectEqual(false, TraceSignatureMatch(&trace, message), t)
+	expectEqual(false, SignatureTraceMatch(&trace, message), t)
 }
 
-func TestTraceSignatureMatchInputs(t *testing.T) {
+func TestSignatureTraceMatchInputs(t *testing.T) {
 	trace := Trace{
 		Product: Product{
 			Inputs: &[]Input{
@@ -273,8 +274,8 @@ func TestTraceSignatureMatchInputs(t *testing.T) {
 		},
 	}
 
-	message := string(CreateSignatureContents(&trace.Product))
-	expectEqual(true, TraceSignatureMatch(&trace, message), t)
+	message := string(CreateSignatureContents(&trace.Product, trace.Event))
+	expectEqual(true, SignatureTraceMatch(&trace, message), t)
 
 	message = `{
 		"hash": "",
@@ -283,16 +284,16 @@ func TestTraceSignatureMatchInputs(t *testing.T) {
 			{"name": "abc.ef", "hash": "15161718"}
 		]
 		}`
-	expectEqual(true, TraceSignatureMatch(&trace, message), t)
+	expectEqual(true, SignatureTraceMatch(&trace, message), t)
 
 	message = `{
 		"hash": "",
 		"inputs": []
 		}`
-	expectEqual(false, TraceSignatureMatch(&trace, message), t)
+	expectEqual(false, SignatureTraceMatch(&trace, message), t)
 }
 
-func TestTraceSignatureMatchApprox(t *testing.T) {
+func TestSignatureTraceMatchApprox(t *testing.T) {
 	trace := Trace{
 		Product: Product{
 			Hash: "01020304",
@@ -303,27 +304,27 @@ func TestTraceSignatureMatchApprox(t *testing.T) {
 
 	// no message = fail
 	message := "{}"
-	expectEqual(false, TraceSignatureMatch(&trace, message), t)
+	expectEqual(false, SignatureTraceMatch(&trace, message), t)
 
 	// must have at least hash
 	message = "{\"name\":\"asdf\"}"
-	expectEqual(false, TraceSignatureMatch(&trace, message), t)
+	expectEqual(false, SignatureTraceMatch(&trace, message), t)
 	message = "{\"hash\":\"01020304\"}"
-	expectEqual(true, TraceSignatureMatch(&trace, message), t)
+	expectEqual(true, SignatureTraceMatch(&trace, message), t)
 
 	// can have unneeded fields
 	message = "{\"hash\":\"01020304\",\"other\":\"value\"}"
-	expectEqual(true, TraceSignatureMatch(&trace, message), t)
+	expectEqual(true, SignatureTraceMatch(&trace, message), t)
 
 	// order doesn't matter
 	message = "{\"name\":\"asdf\",\"hash\":\"01020304\"}"
-	expectEqual(true, TraceSignatureMatch(&trace, message), t)
+	expectEqual(true, SignatureTraceMatch(&trace, message), t)
 
 	// if field present, it must match
 	message = "{\"name\":\"jkl\",\"hash\":\"01020304\"}"
-	expectEqual(false, TraceSignatureMatch(&trace, message), t)
+	expectEqual(false, SignatureTraceMatch(&trace, message), t)
 
 	// check is case sensitive
 	message = "{\"Hash\":\"01020304\"}"
-	expectEqual(false, TraceSignatureMatch(&trace, message), t)
+	expectEqual(false, SignatureTraceMatch(&trace, message), t)
 }
