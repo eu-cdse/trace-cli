@@ -103,7 +103,7 @@ func main() {
 	obsolete := flag.String("obsolete", "", "Creates an OBSOLETE trace with the given reason for the products.")
 	include_glob := flag.String("include", "*", "A glob pattern defining the elements within an archive to include.")
 	name := flag.String("name", "", "The product name for which the trace is generated. (default is the filename)")
-	input_str := flag.String("input", "", "The input products based on which the product has been generated, as comma-separated pairs of NAME:HASH tuples.")
+	input_str := flag.String("input", "", "The input products based on which the product has been generated, as comma-separated pairs of NAME:HASH tuples, or [] to explicitly indicate no inputs.")
 	verbose := flag.Bool("verbose", false, "Turn on verbose output.")
 	debug := flag.Bool("debug", false, "Turn on debugging output.")
 	insecure := flag.Bool("insecure", false, "Ignore insecure SSL certificates when connecting to the API endpoint.")
@@ -356,9 +356,9 @@ func ValidateCertFile(certfile string) any {
 }
 
 func ValidateInputs(input_string *string) *[]Input {
-	if input_string == nil {
+	if input_string == nil || len(*input_string) == 0 {
 		return nil
-	} else if len(*input_string) == 0 {
+	} else if *input_string == "[]" {
 		return &[]Input{}
 	}
 	tuples := strings.Split(*input_string, ",")

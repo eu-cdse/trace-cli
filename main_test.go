@@ -21,7 +21,11 @@ func TestValidateInputs(t *testing.T) {
 }
 
 func TestValidateInputsEmpty(t *testing.T) {
-	empty := ""
-	expectArrayEqual([]Input{}, *ValidateInputs(&empty), t)
 	expectEqual(nil, ValidateInputs(nil), t)
+
+	empty := ""
+	expectEqual(nil, ValidateInputs(&empty), t)
+
+	empty = "[]"
+	expectArrayEqual([]Input{}, *ValidateInputs(&empty), t)
 }
