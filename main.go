@@ -87,6 +87,11 @@ func PrintUsageAndFail() {
 }
 
 func main() {
+	log.SetFormatter(&log.TextFormatter{
+		ForceColors:   true, // otherwise windows will use logfmt formatting since it has no TTY
+		FullTimestamp: true,
+		PadLevelText:  true,
+	})
 	log.SetLevel(log.WarnLevel)
 
 	hash_func := flag.String("algorithm", BLAKE3, "The selected checksum algorithm, can be any of the following: SHA256, SHA3, BLAKE3.")
