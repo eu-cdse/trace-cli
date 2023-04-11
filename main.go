@@ -113,7 +113,10 @@ func main() {
 	getopt.Alias("v", "verbose")
 	getopt.Alias("d", "debug")
 	getopt.Alias("e", "event")
-	getopt.Parse()
+	opt_err := getopt.CommandLine.Parse(os.Args[1:]) // getopt.Parse() should exit, but doesn't
+	if opt_err != nil {
+		os.Exit(1)
+	}
 
 	if *verbose {
 		log.SetLevel(log.InfoLevel)
