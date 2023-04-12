@@ -314,12 +314,12 @@ func RegisterTraces(traces []RegisterTrace, api *ClientWithResponses) error {
 
 	registration := res.JSON201
 	if registration != nil {
-		if registration.Success {
-			log.Infof("Registration successful: %s", registration.Message)
-			return nil
-		} else {
-			return fmt.Errorf("Registration failed: %s", registration.Message)
+		log.Infof("Registered %v traces successfully.", registration.Success)
+		if registration.Error > 0 {
+			//TODO list all the failed traces here
+			return fmt.Errorf("Registration failed for %v traces.", registration.Error)
 		}
+		return nil
 	}
 	return fmt.Errorf("Invalid response from service: %s", res.Status())
 }
