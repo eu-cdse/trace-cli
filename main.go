@@ -177,8 +177,11 @@ func main() {
 		readers, names, err = OpenFilesOrStdin(files, *stdin)
 		api := CreateClient(*url, auth_token, *insecure)
 		check, err = CheckProducts(readers, names, api, hash_function)
+		if err != nil {
+			log.Errorf("%v", err)
+		}
 		if !check {
-			log.Error("Not all products could be validated successfully.")
+			err = fmt.Errorf("Not all products could be validated successfully.")
 		}
 	case HELP:
 		PrintUsageAndExit(true, 0)
