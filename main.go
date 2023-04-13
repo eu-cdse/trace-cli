@@ -97,7 +97,7 @@ func main() {
 	hash_func := flag.String("algorithm", BLAKE3, "The selected checksum algorithm, can be any of the following: SHA256, SHA3, BLAKE3.")
 	cert_file := flag.String("cert", "", "The path to the PEM file holding the x509 certificate.")
 	key_file := flag.String("ckey", "", "The path to the PEM file holding the private key for the certificate.")
-	url := flag.String("url", "https://64.225.133.55.nip.io/", "The address to the traceabilty service API endpoint.")
+	url := flag.String("url", "https://trace.dataspace.copernicus.eu/api", "The address to the traceabilty service API endpoint.")
 	auth_token := flag.String("auth", "", "The bearer token for authentication against the API endpoint.")
 	event := flag.String("event", "", "The trace event, can be any of the following: CREATE, COPY, DELETE.")
 	obsolete := flag.String("obsolete", "", "Creates an OBSOLETE trace with the given reason for the products.")
