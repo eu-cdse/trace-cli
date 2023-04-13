@@ -175,6 +175,9 @@ func main() {
 		var names []string
 		var readers []io.Reader
 		readers, names, err = OpenFilesOrStdin(files, *stdin)
+		if err != nil {
+			break
+		}
 		api := CreateClient(*url, auth_token, *insecure)
 		check, err = CheckProducts(readers, names, api, hash_function)
 		if err != nil {
