@@ -7,11 +7,11 @@ import (
 func TestValidateInputs(t *testing.T) {
 	inputs_string := "abc:010203,def:040506"
 	expected := []Input{
-		Input{
+		{
 			Name: "abc",
 			Hash: "010203",
 		},
-		Input{
+		{
 			Name: "def",
 			Hash: "040506",
 		},

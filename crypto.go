@@ -26,8 +26,8 @@ type Algorithm string
 
 const (
 	SHA256 Algorithm = "SHA256"
-	SHA3             = "SHA3"
-	BLAKE3           = "BLAKE3"
+	SHA3   Algorithm = "SHA3"
+	BLAKE3 Algorithm = "BLAKE3"
 )
 
 func EncodeHash(checksum []byte) string {

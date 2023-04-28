@@ -30,12 +30,12 @@ type Command string
 
 const (
 	CHECK    Command = "CHECK"
-	HELP             = "HELP"
-	PRINT            = "PRINT"
-	PUBLISH          = "PUBLISH"
-	REGISTER         = "REGISTER"
-	STATUS           = "STATUS"
-	VERSION          = "VERSION"
+	HELP     Command = "HELP"
+	PRINT    Command = "PRINT"
+	PUBLISH  Command = "PUBLISH"
+	REGISTER Command = "REGISTER"
+	STATUS   Command = "STATUS"
+	VERSION  Command = "VERSION"
 )
 
 func (cmd Command) RequiresArgs() bool {
@@ -94,7 +94,7 @@ func main() {
 	})
 	log.SetLevel(log.WarnLevel)
 
-	hash_func := flag.String("algorithm", BLAKE3, "The selected checksum algorithm, can be any of the following: SHA256, SHA3, BLAKE3.")
+	hash_func := flag.String("algorithm", string(BLAKE3), "The selected checksum algorithm, can be any of the following: SHA256, SHA3, BLAKE3.")
 	cert_file := flag.String("cert", "", "The path to the PEM file holding the x509 certificate.")
 	key_file := flag.String("ckey", "", "The path to the PEM file holding the private key for the certificate.")
 	url := flag.String("url", "https://trace.dataspace.copernicus.eu/api", "The address to the traceabilty service API endpoint.")
@@ -184,7 +184,7 @@ func main() {
 			log.Errorf("%v", err)
 		}
 		if !check {
-			err = fmt.Errorf("Not all products could be validated successfully.")
+			err = fmt.Errorf("not all products could be validated successfully")
 		}
 	case HELP:
 		PrintUsageAndExit(true, 0)
@@ -251,7 +251,7 @@ func CheckStatus(url string, insecure bool) error {
 
 	res, err := api.PingStatusGetWithResponse(context.Background())
 	if err != nil {
-		return fmt.Errorf("Unable to call API endpoint: %v", err)
+		return fmt.Errorf("unable to call API endpoint: %v", err)
 	}
 
 	if res.JSON200 != nil {
@@ -259,7 +259,7 @@ func CheckStatus(url string, insecure bool) error {
 		return nil
 	}
 
-	return fmt.Errorf("Invalid response from service: %v", res.Status())
+	return fmt.Errorf("invalid response from service: %v", res.Status())
 }
 
 func CreateClient(url string, auth_token *string, insecure bool) *ClientWithResponses {

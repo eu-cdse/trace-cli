@@ -102,10 +102,10 @@ func VerifySignature(message []byte, signature []byte, certificate []byte, algor
 func DecodePrivateKey(key_pem []byte, password ...func() string) (any, error) {
 	block, _ := pem.Decode(key_pem)
 	if block == nil {
-		return nil, fmt.Errorf("Failed to decode PEM block of the private key.")
+		return nil, fmt.Errorf("failed to decode PEM block of the private key")
 	}
 	if x509.IsEncryptedPEMBlock(block) {
-		return nil, fmt.Errorf("PEM Encryption is not supported, please use PKCS8 instead.")
+		return nil, fmt.Errorf("PEM Encryption is not supported, please use PKCS8 instead")
 	}
 
 	key_bytes := block.Bytes
@@ -122,30 +122,30 @@ func DecodePrivateKey(key_pem []byte, password ...func() string) (any, error) {
 		if len(pass) == 0 {
 			// this is currently a bug in pkcs8 lib.
 			// golang pkcs8 can't handle encrpytion at all.
-			return nil, fmt.Errorf("Encrypted private keys must have a non-empty password.")
+			return nil, fmt.Errorf("encrypted private keys must have a non-empty password")
 		}
 
 		key, err = pkcs8.ParsePKCS8PrivateKey(key_bytes, pass)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse encrypted PK8 key: %v", err)
+			return nil, fmt.Errorf("failed to parse encrypted PK8 key: %v", err)
 		}
 	case "PRIVATE KEY":
 		key, err = x509.ParsePKCS8PrivateKey(key_bytes)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse PK8 key: %v", err)
+			return nil, fmt.Errorf("failed to parse PK8 key: %v", err)
 		}
 	case "EC PRIVATE KEY":
 		key, err = x509.ParseECPrivateKey(key_bytes)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse EC key: %v", err)
+			return nil, fmt.Errorf("failed to parse EC key: %v", err)
 		}
 	case "RSA PRIVATE KEY":
 		key, err = x509.ParsePKCS1PrivateKey(key_bytes)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse RSA key: %v", err)
+			return nil, fmt.Errorf("failed to parse RSA key: %v", err)
 		}
 	default:
-		return nil, fmt.Errorf("Invalid private key supplied: %s", block.Type)
+		return nil, fmt.Errorf("invalid private key supplied: %s", block.Type)
 	}
 	return key, err
 }
@@ -163,10 +163,10 @@ func DecodePublicKey(public_key []byte) (any, error) {
 func DecodeCertificatePEM(certificate_pem []byte, sign_time time.Time) (*x509.Certificate, error) {
 	block, _ := pem.Decode(certificate_pem)
 	if block == nil {
-		return nil, fmt.Errorf("Failed to decode PEM block of the certificate.")
+		return nil, fmt.Errorf("failed to decode PEM block of the certificate")
 	}
 	if x509.IsEncryptedPEMBlock(block) {
-		return nil, fmt.Errorf("PEM encryption of the certificate is not supported.")
+		return nil, fmt.Errorf("PEM encryption of the certificate is not supported")
 	}
 
 	return DecodeCertificateDER(block.Bytes, sign_time)
@@ -175,7 +175,7 @@ func DecodeCertificatePEM(certificate_pem []byte, sign_time time.Time) (*x509.Ce
 func DecodeCertificateDER(certificate_der []byte, sign_time time.Time) (*x509.Certificate, error) {
 	certificate, err := x509.ParseCertificate(certificate_der)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to parse certificate: %v", err)
+		return nil, fmt.Errorf("unable to parse certificate: %v", err)
 	}
 
 	if sign_time.Before(certificate.NotBefore) || sign_time.After(certificate.NotAfter) {

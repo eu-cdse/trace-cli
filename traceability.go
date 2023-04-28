@@ -141,7 +141,7 @@ func CheckProducts(readers []io.Reader, names []string, api *ClientWithResponses
 
 	var success = true
 
-	for i, _ := range readers {
+	for i := range readers {
 		check, err := CheckProduct(readers[i], names[i], api, hasher)
 		if err != nil {
 			return false, err
@@ -156,7 +156,7 @@ func CheckProduct(reader io.Reader, name string, api *ClientWithResponses, hashe
 	hash := HashData(reader, hasher)
 	res, err := api.SearchHashV1WithResponse(context.Background(), EncodeHash(hash))
 	if err != nil {
-		return false, fmt.Errorf("Unable to call API endpoint: %v", err)
+		return false, fmt.Errorf("unable to call API endpoint: %v", err)
 	}
 
 	if res.JSON200 == nil {
@@ -164,7 +164,7 @@ func CheckProduct(reader io.Reader, name string, api *ClientWithResponses, hashe
 			log.Errorf("No traces found for %s %s: %s\n", name, EncodeHash(hash), string(res.Body))
 			return false, nil
 		}
-		return false, fmt.Errorf("Invalid response from service: %s\n%s", res.Status(), string(res.Body))
+		return false, fmt.Errorf("invalid response from service: %s\n%s", res.Status(), string(res.Body))
 	}
 	if traces := res.JSON200; traces == nil || len(*traces) == 0 {
 		fmt.Printf("%s %s\tno traces found for checksum!\n", EncodeHash(hash), name)
@@ -309,7 +309,7 @@ func RegisterTraces(traces []RegisterTrace, api *ClientWithResponses) error {
 
 	res, err := api.PutTracesV1WithResponse(context.Background(), traces)
 	if err != nil {
-		return fmt.Errorf("Unable to call API endpoint: %v", err)
+		return fmt.Errorf("unable to call API endpoint: %v", err)
 	}
 
 	registration := res.JSON201
@@ -317,9 +317,9 @@ func RegisterTraces(traces []RegisterTrace, api *ClientWithResponses) error {
 		log.Infof("Registered %v traces successfully.", registration.Success)
 		if registration.Error > 0 {
 			//TODO list all the failed traces here
-			return fmt.Errorf("Registration failed for %v traces.", registration.Error)
+			return fmt.Errorf("registration failed for %v traces", registration.Error)
 		}
 		return nil
 	}
-	return fmt.Errorf("Invalid response from service: %s", res.Status())
+	return fmt.Errorf("invalid response from service: %s", res.Status())
 }

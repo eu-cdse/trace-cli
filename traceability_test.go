@@ -15,7 +15,7 @@ func expectArrayEqual[T comparable](expected []T, actual []T, t *testing.T) {
 	if len(actual) != len(expected) {
 		t.Fatalf("Results don't match. Expected '%v', Actual '%v'", expected, actual)
 	}
-	for i, _ := range expected {
+	for i := range expected {
 		if actual[i] != expected[i] {
 			t.Fatalf("Results don't match. Expected '%v', Actual '%v'", expected, actual)
 		}
@@ -120,11 +120,11 @@ func TestCheckTraceChecksumContent(t *testing.T) {
 		Product: Product{
 			Hash: "abcd",
 			Contents: &[]Content{
-				Content{
+				{
 					Hash: "affe",
 					Path: "f123.nc",
 				},
-				Content{
+				{
 					Hash: "fefe",
 					Path: "f124.nc",
 				},
@@ -169,11 +169,11 @@ func TestTraceNameOverride(t *testing.T) {
 
 func TestTraceInputs(t *testing.T) {
 	inputs := []Input{
-		Input{
+		{
 			Name: "abc",
 			Hash: "010203",
 		},
-		Input{
+		{
 			Name: "def",
 			Hash: "040506",
 		},
@@ -227,11 +227,11 @@ func TestSignatureTraceMatchContents(t *testing.T) {
 	trace := Trace{
 		Product: Product{
 			Contents: &[]Content{
-				Content{
+				{
 					Path: "jkl/abc.de",
 					Hash: "11121314",
 				},
-				Content{
+				{
 					Path: "jkl/abc.ef",
 					Hash: "15161718",
 				},
@@ -262,11 +262,11 @@ func TestSignatureTraceMatchInputs(t *testing.T) {
 	trace := Trace{
 		Product: Product{
 			Inputs: &[]Input{
-				Input{
+				{
 					Name: "abc.de",
 					Hash: "11121314",
 				},
-				Input{
+				{
 					Name: "abc.ef",
 					Hash: "15161718",
 				},
