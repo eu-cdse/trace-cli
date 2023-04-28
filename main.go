@@ -259,7 +259,7 @@ func CheckStatus(url string, insecure bool) error {
 		return nil
 	}
 
-	return fmt.Errorf("Invalid response from service: %s", res.Status())
+	return fmt.Errorf("Invalid response from service: %v", res.Status())
 }
 
 func CreateClient(url string, auth_token *string, insecure bool) *ClientWithResponses {

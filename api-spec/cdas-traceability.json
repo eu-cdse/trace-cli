@@ -2,8 +2,13 @@
   "openapi": "3.0.2",
   "info": {
     "title": "Traceability Service - Data Access Service",
-    "version": "0.9.1"
+    "version": "1.1.0"
   },
+  "servers": [
+    {
+      "url": "/api"
+    }
+  ],
   "paths": {
     "/status": {
       "get": {
@@ -14,12 +19,11 @@
         "operationId": "ping_status_get",
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "The server status was retrieved.",
             "content": {
               "application/json": {
                 "schema": {
-                  "title": "Response Ping Status Get",
-                  "type": "string"
+                  "$ref": "#/components/schemas/ServerInfo"
                 }
               }
             }
@@ -32,14 +36,15 @@
         "tags": [
           "Authorized Users"
         ],
-        "summary": "Registers a new set of traces in the system.",
-        "description": "This endpoint registers new traces in the system.\n\nIf any of the traces already exist, then the previous traces will be overwritten.",
+        "summary": "Registers a new set of traces in the system. All the given traces must share the same event and be unique (each combination of product hash and event may only occur once).",
+        "description": "This endpoint registers new traces in the system.\n\nThis endpoint accepts a maximum number of 50 traces.",
         "operationId": "put_traces_v1",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "title": "Traces",
+                "maxItems": 50,
                 "minItems": 1,
                 "type": "array",
                 "items": {
@@ -52,7 +57,7 @@
         },
         "responses": {
           "201": {
-            "description": "Indicates that the traces were successfully registered in the system.",
+            "description": "Indicates that there were traces successfully queued to be registered in the system.",
             "content": {
               "application/json": {
                 "schema": {
@@ -65,10 +70,10 @@
             "description": "Traces can only be registered by authorized users."
           },
           "413": {
-            "description": "Too many traces were included in the request."
+            "description": "The sent traces data is exceeding the limit."
           },
           "422": {
-            "description": "Traces with different events were sent. Only traces sharing the same event are allowed."
+            "description": "Invalid traces. This can occur if the traces are not valid JSON, if too many (more than 50) traces were sent, if traces with different events were sent, or if the given traces are not unique (e.g. two traces with the same product hash and event were sent)."
           }
         },
         "security": [
@@ -129,7 +134,7 @@
           "Trace Retrieval"
         ],
         "summary": "Returns all traces for a given product name.",
-        "description": "This endpoint returns all traces for a given product name.\n\nMultiple trace may exist for a single product to indicate the product's history\n(e.g. creation, copying, deletion) and origin.",
+        "description": "This endpoint returns the traces (up to 50) for a given product name.\n\nMultiple trace may exist for a single product to indicate the product's history\n(e.g. creation, copying, obsoletion) and origin.",
         "operationId": "get_trace_by_product_name_v1",
         "parameters": [
           {
@@ -144,7 +149,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Traces for the given product name were found.",
+            "description": "Searching traces for the given product name was successful.",
             "content": {
               "application/json": {
                 "schema": {
@@ -176,7 +181,7 @@
           "Trace Retrieval"
         ],
         "summary": "Returns all traces for a given filehash.",
-        "description": "This endpoint returns all traces for a given filehash.\n\nThe filehash may be the product's own hash, or it may be of a product's contents.",
+        "description": "This endpoint returns the traces (up to 50) for a given filehash.\n\nThe filehash may be the product's own hash, or it may be of a product's contents.",
         "operationId": "search_hash_v1",
         "parameters": [
           {
@@ -191,7 +196,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Traces for the given filehash were found.",
+            "description": "Searching traces for the given filehash was successful.",
             "content": {
               "application/json": {
                 "schema": {
@@ -247,7 +252,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Traces for the given filehash were found and a validation has been performed.",
+            "description": "The validation has been performed.",
             "content": {
               "application/json": {
                 "schema": {
@@ -255,9 +260,6 @@
                 }
               }
             }
-          },
-          "404": {
-            "description": "No traces for the given product were found."
           },
           "422": {
             "description": "Validation Error",
@@ -419,6 +421,42 @@
         },
         "description": "A trace describes a specific event for a product used for validate incoming traces."
       },
+      "ServerInfo": {
+        "title": "ServerInfo",
+        "required": [
+          "server_version",
+          "protocol_version",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "server_version": {
+            "title": "Server Version",
+            "type": "string"
+          },
+          "protocol_version": {
+            "title": "Protocol Version",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "$ref": "#/components/schemas/ServerStatus"
+          }
+        },
+        "description": "The information describing the state of the server."
+      },
+      "ServerStatus": {
+        "title": "ServerStatus",
+        "enum": [
+          "running",
+          "degraded",
+          "error"
+        ],
+        "type": "string",
+        "description": "The status of the server."
+      },
       "Signature": {
         "title": "Signature",
         "required": [
@@ -445,7 +483,7 @@
             "example": "MIICBjCCAaugAwIBAgIUbBpJ9cGCZ5Dj0Q+DmYgRmcv/TVgwCgYIKoZIzj0EAwIwWDELMAkGA1UEBhMCQVQxDTALBgNVBAcMBExpbnoxITAfBgNVBAoMGENsb3VkZmxpZ2h0IEF1c3RyaWEgR21iSDEXMBUGA1UEAwwOY2xvdWRmbGlnaHQuaW8wHhcNMjMwMzI5MTY1MDQ3WhcNMjQwMzI4MTY1MDQ3WjBYMQswCQYDVQQGEwJBVDENMAsGA1UEBwwETGluejEhMB8GA1UECgwYQ2xvdWRmbGlnaHQgQXVzdHJpYSBHbWJIMRcwFQYDVQQDDA5jbG91ZGZsaWdodC5pbzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABNLInXtAStyBUW79nOwMtI0cSPJYP23N2I5hcwnog/PWlZS7cqq7IR0MGzSPevfTtriaKSIP8zxjf2H4sabW4+ajUzBRMB0GA1UdDgQWBBSqtiqY7E/7mTr59Li05nMPMNlV2jAfBgNVHSMEGDAWgBSqtiqY7E/7mTr59Li05nMPMNlV2jAPBgNVHRMBAf8EBTADAQH/MAoGCCqGSM49BAMCA0kAMEYCIQDO+PyCD9ZD8rUsJP6kDekizStBfqOjDCEeD5qNT/0yuAIhAPLhXSDBnCR926O9cue6R5L9vegs9bVh8saZFCXkeMhP"
           },
           "message": {
-            "title": "The message on which the signature was applied to. This should be equal to the trace informationin JSON format.",
+            "title": "The message on which the signature was applied to. This should be equal to the trace information in JSON format.",
             "type": "string",
             "example": "{\"hash\":\"b0d03ae....\",...}"
           }
