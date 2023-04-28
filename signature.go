@@ -104,6 +104,7 @@ func DecodePrivateKey(key_pem []byte, password ...func() string) (any, error) {
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode PEM block of the private key")
 	}
+	//lint:ignore SA1019 we want to raise error if used
 	if x509.IsEncryptedPEMBlock(block) {
 		return nil, fmt.Errorf("PEM Encryption is not supported, please use PKCS8 instead")
 	}
@@ -165,6 +166,7 @@ func DecodeCertificatePEM(certificate_pem []byte, sign_time time.Time) (*x509.Ce
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode PEM block of the certificate")
 	}
+	//lint:ignore SA1019 we want to raise error if used
 	if x509.IsEncryptedPEMBlock(block) {
 		return nil, fmt.Errorf("PEM encryption of the certificate is not supported")
 	}
