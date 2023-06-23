@@ -43,6 +43,7 @@ func ReadProductTracesAppend(reader io.Reader, traces *[]RegisterTrace) error {
 
 type TraceTemplate struct {
 	Name            *string
+	Hash            *string
 	Include_Pattern glob.Glob
 	Inputs          *[]Input
 	Event           TraceEvent
@@ -70,19 +71,24 @@ func CreateProductTraces(files []string, template *TraceTemplate, hasher Algorit
 	return traces
 }
 func CreateProductInfo(filename string, template *TraceTemplate, hasher Algorithm) Product {
-	hash, size := HashFile(filename, hasher)
-	var product_name string
-	if template.Name != nil && len(*template.Name) > 0 {
-		product_name = *template.Name
-	} else {
-		product_name = filepath.Base(filename)
-	}
-
 	var p = Product{
 		Inputs: template.Inputs,
-		Name:   product_name,
-		Hash:   EncodeHash(hash),
-		Size:   size,
+	}
+
+	if template.Hash != nil && len(*template.Hash) > 0 {
+		log.Infof("Skipping hash, using supplied checksum: %s", *template.Hash)
+		p.Hash = *template.Hash
+		p.Size = 0 // This is not good, but the only option here => ensure that provision of hash is limited
+	} else {
+		hash, size := HashFile(filename, hasher)
+		p.Hash = EncodeHash(hash)
+		p.Size = size
+	}
+
+	if template.Name != nil && len(*template.Name) > 0 {
+		p.Name = *template.Name
+	} else {
+		p.Name = filepath.Base(filename)
 	}
 
 	if strings.HasSuffix(filename, ".zip") {

@@ -140,7 +140,7 @@ func TestCheckTraceChecksumContent(t *testing.T) {
 	expectEqual(true, status, t)
 }
 
-func TestTraceName(t *testing.T) {
+func TestTraceNameOverride(t *testing.T) {
 	name := "asdf"
 	traces := CreateProductTraces([]string{"test-data/test1.bin"}, &TraceTemplate{Name: &name}, BLAKE3, nil, nil)
 	expectEqual(1, len(traces), t)
@@ -159,12 +159,19 @@ func TestTraceNameDefault(t *testing.T) {
 
 }
 
-func TestTraceNameOverride(t *testing.T) {
+func TestTraceNameOverrideIgnore(t *testing.T) {
 	name := "asdf"
 	traces := CreateProductTraces([]string{"test-data/test1.bin", "test-data/test2.bin"}, &TraceTemplate{Name: &name}, BLAKE3, nil, nil)
 	expectEqual(2, len(traces), t)
 	expectEqual("test1.bin", traces[0].Product.Name, t)
 	expectEqual("test2.bin", traces[1].Product.Name, t)
+}
+
+func TestTraceHashOverride(t *testing.T) {
+	hash := "0a0b0c0d"
+	traces := CreateProductTraces([]string{""}, &TraceTemplate{Hash: &hash}, BLAKE3, nil, nil)
+	expectEqual(1, len(traces), t)
+	expectEqual("0a0b0c0d", traces[0].Product.Hash, t)
 }
 
 func TestTraceInputs(t *testing.T) {

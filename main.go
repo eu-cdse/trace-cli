@@ -108,6 +108,7 @@ func main() {
 	debug := flag.Bool("debug", false, "Turn on debugging output.")
 	insecure := flag.Bool("insecure", false, "Ignore insecure SSL certificates when connecting to the API endpoint.")
 	stdin := flag.Bool("stdin", false, "Read from STDIN stream instead of FILE arguments")
+	hash_value := flag.String("checksum", "", "The actual checksum for the trace to be generated in hexadecimal format. The checksum must be generated based on the provided algorithm and file. When specified the checksum will not be calculated - USE WITH CAUTION!")
 
 	getopt.Alias("i", "include")
 	getopt.Alias("v", "verbose")
@@ -133,6 +134,7 @@ func main() {
 
 	tmpl := TraceTemplate{
 		Name:            name,
+		Hash:            hash_value,
 		Include_Pattern: ValidateIncludePattern(*include_glob),
 		Inputs:          ValidateInputs(input_str),
 	}
@@ -164,6 +166,22 @@ func main() {
 	if len(command_args) > 1 && *stdin {
 		log.Error("Data can either be read from STDIN or from FILE..., but not both.")
 		PrintUsageAndFail()
+	}
+	if *hash_value != "" {
+		hash, err := DecodeHash(*hash_value)
+		if err != nil {
+			log.Errorf("The provided checksum '%s' could not be parsed: %v", *hash_value, err)
+			PrintUsageAndFail()
+		}
+		// re-encode to ensure a unified format
+		*hash_value = EncodeHash(hash)
+		if TraceEvent(*event) != DELETE {
+			// There are several elements that cannot be filled, e.g. product size.
+			// If this is a DELETE trace, then it will not be kept in long term storage,
+			// hence it is considered ok. But for all other cases it's better to be avoided.
+			log.Warn("Supplying a checksum should generally be avoided for cases other than DELETE" +
+				" as not all trace information is populated when skipping the hash calculation.")
+		}
 	}
 
 	files := command_args[1:]
