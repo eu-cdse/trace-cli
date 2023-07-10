@@ -193,17 +193,15 @@ func main() {
 	var err error
 	switch command {
 	case CHECK:
-		var check bool
-		var names []string
-		var readers []io.Reader
-		readers, names, err = OpenFilesOrStdin(files, *stdin)
-		if err != nil {
+		readers, names, err_ := OpenFilesOrStdin(files, *stdin)
+		if err_ != nil {
+			err = err_
 			break
 		}
 		api := CreateClient(*url, auth_token, *insecure)
-		check, err = CheckProducts(readers, names, api, hash_function)
-		if err != nil {
-			log.Errorf("%v", err)
+		check, err_ := CheckProducts(readers, names, api, hash_function)
+		if err_ != nil {
+			log.Errorf("%v", err_)
 		}
 		if !check {
 			err = fmt.Errorf("not all products could be validated successfully")
