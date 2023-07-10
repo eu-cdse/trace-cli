@@ -335,3 +335,171 @@ func TestSignatureTraceMatchApprox(t *testing.T) {
 	message = "{\"Hash\":\"01020304\"}"
 	expectEqual(false, SignatureTraceMatch(&trace, message), t)
 }
+
+func TestUpdateTrace(t *testing.T) {
+	traces := []RegisterTrace{{
+		Product: Product{
+			Name: "asdf",
+		},
+		Event: CREATE,
+	}}
+	expected := []RegisterTrace{{
+		Product: Product{
+			Name: "jkl",
+		},
+		Event: CREATE,
+	}}
+	name := "jkl"
+	UpdateTraces(&traces, &TraceTemplate{Name: &name}, nil, nil)
+	expectArrayEqual(expected, traces, t)
+}
+
+func TestUpdateTraceMultiple(t *testing.T) {
+
+	traces := []RegisterTrace{{
+		Product: Product{
+			Name: "asdf",
+		},
+		Event: CREATE,
+	}, {
+		Product: Product{
+			Name: "jkl",
+		},
+		Event: CREATE,
+	}}
+	expected := []RegisterTrace{{
+		Product: Product{
+			Name: "asdf",
+		},
+		Event: COPY,
+	}, {
+		Product: Product{
+			Name: "jkl",
+		},
+		Event: COPY,
+	}}
+	UpdateTraces(&traces, &TraceTemplate{Event: COPY}, nil, nil)
+	expectArrayEqual(expected, traces, t)
+}
+
+func TestUpdateTraceNoChanges(t *testing.T) {
+	traces := []RegisterTrace{{
+		Product: Product{
+			Name: "asdf",
+		},
+		Event: CREATE,
+		Signature: Signature{
+			Message: "qwert",
+		},
+	}}
+	expected := []RegisterTrace{{
+		Product: Product{
+			Name: "asdf",
+		},
+		Event: CREATE,
+		Signature: Signature{
+			Message: "qwert",
+		},
+	}}
+	UpdateTraces(&traces, &TraceTemplate{}, nil, nil)
+	expectArrayEqual(expected, traces, t)
+}
+
+func TestUpdateTraceObsolescense(t *testing.T) {
+	obsmsg := "outdated"
+	name := "jkl"
+
+	traces := []RegisterTrace{{
+		Product: Product{
+			Name: "asdf",
+		},
+		Event:        OBSOLETE,
+		Obsolescence: &obsmsg,
+	}}
+
+	reset := []RegisterTrace{{
+		Product: Product{
+			Name: "jkl",
+		},
+		Event: COPY,
+	}}
+	UpdateTraces(&traces, &TraceTemplate{Name: &name, Event: COPY}, nil, nil)
+	expectArrayEqual(reset, traces, t)
+
+	added := []RegisterTrace{{
+		Product: Product{
+			Name: "jkl",
+		},
+		Event:        OBSOLETE,
+		Obsolescence: &obsmsg,
+	}}
+	UpdateTraces(&traces, &TraceTemplate{Name: &name, Event: OBSOLETE, Obsolescence: &obsmsg}, nil, nil)
+	expectArrayEqual(added, traces, t)
+}
+
+func TestUpdateTraceSignature(t *testing.T) {
+	private_key, err := DecodePrivateKey([]byte(`
+-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEICXy35r0cy6uTDxIRQZZe/cqM8OwtxEWKcB3Xu1GXAXWoAoGCCqGSM49
+AwEHoUQDQgAE0side0BK3IFRbv2c7Ay0jRxI8lg/bc3YjmFzCeiD89aVlLtyqrsh
+HQwbNI9699O2uJopIg/zPGN/Yfixptbj5g==
+-----END EC PRIVATE KEY-----
+	`))
+	ExpectNoErr(err, t, "Decoding private key: ")
+	certificate, err := DecodeCertificatePEM([]byte(`
+-----BEGIN CERTIFICATE-----
+MIIB3zCCAYWgAwIBAgIUM79G6XVXCF4OgceWfI8TW6tlLw4wCgYIKoZIzj0EAwIw
+RTELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGElu
+dGVybmV0IFdpZGdpdHMgUHR5IEx0ZDAeFw0yMzAzMTAyMTQyNDZaFw0yNDAzMDky
+MTQyNDZaMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYD
+VQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwWTATBgcqhkjOPQIBBggqhkjO
+PQMBBwNCAATSyJ17QErcgVFu/ZzsDLSNHEjyWD9tzdiOYXMJ6IPz1pWUu3KquyEd
+DBs0j3r307a4mikiD/M8Y39h+LGm1uPmo1MwUTAdBgNVHQ4EFgQUqrYqmOxP+5k6
++fS4tOZzDzDZVdowHwYDVR0jBBgwFoAUqrYqmOxP+5k6+fS4tOZzDzDZVdowDwYD
+VR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNIADBFAiEAw9U3hqAjka7v/Ef1RpQF
+iDJ7shMbFZyoqIsmPKlm1zUCIFgFkahzLWnLZxCCLPSecCPMWzsV6MRk+F4IzMFY
+ug2G
+-----END CERTIFICATE-----	
+	`), time.Now())
+	ExpectNoErr(err, t, "Decoding certificate: ")
+
+	traces := []RegisterTrace{{
+		Product: Product{
+			Name: "asdf",
+		},
+		Event: CREATE,
+	}}
+
+	name := "jkl"
+	UpdateTraces(&traces, &TraceTemplate{Name: &name, Event: COPY}, private_key, certificate)
+
+	expected := Trace{
+		Product: Product{
+			Name: "jkl",
+		},
+		Event: COPY,
+	}
+	status := SignatureTraceMatch(&expected, traces[0].Signature.Message)
+	expectEqual(true, status, t)
+}
+
+func TestUpdateTraceSignatureReset(t *testing.T) {
+	traces := []RegisterTrace{{
+		Product: Product{
+			Name: "asdf",
+		},
+		Event: CREATE,
+		Signature: Signature{
+			Message: "qwert",
+		},
+	}}
+	expected := []RegisterTrace{{
+		Product: Product{
+			Name: "jkl",
+		},
+		Event: CREATE,
+	}}
+	name := "jkl"
+	UpdateTraces(&traces, &TraceTemplate{Name: &name}, nil, nil)
+	expectArrayEqual(expected, traces, t)
+}

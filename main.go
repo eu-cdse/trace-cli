@@ -227,6 +227,11 @@ func main() {
 		if err != nil {
 			break
 		}
+		log.Infof("Loaded %d traces.", len(traces))
+		if tmpl.Event == TraceEvent("") {
+			tmpl.Event = TraceEvent(strings.ToUpper(*event)).Validate()
+		}
+		UpdateTraces(&traces, &tmpl, private_key, certificate)
 		api := CreateClient(*url, auth_token, *insecure)
 		err = RegisterTraces(traces, api)
 		if err != nil {

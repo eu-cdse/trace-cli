@@ -70,6 +70,7 @@ func CreateProductTraces(files []string, template *TraceTemplate, hasher Algorit
 	}
 	return traces
 }
+
 func CreateProductInfo(filename string, template *TraceTemplate, hasher Algorithm) Product {
 	var p = Product{
 		Inputs: template.Inputs,
@@ -135,6 +136,53 @@ func CreateSignatureContents(p *Product, event TraceEvent) []byte {
 		log.Warnf("Unable to marshall trace content for signature: %v", err)
 	}
 	return data
+}
+
+func UpdateTraces(traces *[]RegisterTrace, template *TraceTemplate, key any, cert any) {
+	log.Infof("Updating %d trace(s)...", len(*traces))
+	if template.Name != nil && len(*traces) > 1 {
+		log.Warn("Product name was specified, but traces for multiple products were requested; the specified product name will be ignored.")
+		template.Name = nil
+	}
+
+	sig_reset := false
+
+	for i, trace := range *traces {
+		if template.Name != nil && *template.Name != "" && *template.Name != trace.Product.Name {
+			log.Infof("Updating name in trace to '%s'", *template.Name)
+			(*traces)[i].Product.Name = *template.Name
+			sig_reset = true
+		}
+		if template.Hash != nil && *template.Hash != "" && *template.Hash != trace.Product.Hash {
+			log.Infof("Updating hash in trace to '%s'", *template.Hash)
+			(*traces)[i].Product.Hash = *template.Hash
+			sig_reset = true
+		}
+		if template.Event != TraceEvent("") && template.Event != trace.Event {
+			log.Infof("Updating event in trace to '%s'", template.Event)
+			if trace.Event == OBSOLETE {
+				// reset obsolescence message if new event is something else
+				// (which it is, otherwise we wouldn't update it)
+				(*traces)[i].Obsolescence = nil
+			}
+			(*traces)[i].Event = template.Event
+			sig_reset = true
+		}
+		if template.Obsolescence != nil && (trace.Obsolescence == nil || *template.Obsolescence != *trace.Obsolescence) {
+			log.Infof("Updating obsolescene in trace to '%s'", *template.Obsolescence)
+			(*traces)[i].Obsolescence = template.Obsolescence
+			sig_reset = true
+		}
+
+		if key != nil && cert != nil {
+			log.Infof("Updating signature in trace using provided certificate")
+			sig := CreateSignature(&(*traces)[i], key, cert)
+			(*traces)[i].Signature = sig
+		} else if sig_reset {
+			log.Warnf("Resetting signature because trace elements changed and no certificate was provided.")
+			(*traces)[i].Signature = Signature{}
+		}
+	}
 }
 
 func FormatTraces(traces *[]RegisterTrace) string {
