@@ -139,6 +139,10 @@ func main() {
 		Inputs:          ValidateInputs(input_str),
 	}
 
+	if event != nil && len(*event) > 0 {
+		tmpl.Event = TraceEvent(strings.ToUpper(*event)).Validate()
+	}
+
 	if (len(*key_file) != 0) != (len(*cert_file) != 0) {
 		log.Error("If a certificate file is provide, also the private key file is required and v.v.")
 		PrintUsageAndFail()
@@ -210,9 +214,7 @@ func main() {
 		if *stdin {
 			log.Warn("STDIN processing not supported for print")
 		}
-		if tmpl.Event == TraceEvent("") {
-			tmpl.Event = TraceEvent(strings.ToUpper(*event)).Validate()
-		}
+		tmpl.Event.Validate() // force this to be a valid event here
 		traces := CreateProductTraces(files, &tmpl, hash_function, private_key, certificate)
 		fmt.Printf("%s\n", FormatTraces(&traces))
 	case PUBLISH:
@@ -228,9 +230,6 @@ func main() {
 			break
 		}
 		log.Infof("Loaded %d traces.", len(traces))
-		if tmpl.Event == TraceEvent("") {
-			tmpl.Event = TraceEvent(strings.ToUpper(*event)).Validate()
-		}
 		UpdateTraces(&traces, &tmpl, private_key, certificate)
 		api := CreateClient(*url, auth_token, *insecure)
 		err = RegisterTraces(traces, api)
@@ -242,9 +241,7 @@ func main() {
 		if *stdin {
 			log.Warn("STDIN processing not supported for register")
 		}
-		if tmpl.Event == TraceEvent("") {
-			tmpl.Event = TraceEvent(strings.ToUpper(*event)).Validate()
-		}
+		tmpl.Event.Validate() // force this to be a valid event here
 		traces := CreateProductTraces(files, &tmpl, hash_function, private_key, certificate)
 		api := CreateClient(*url, auth_token, *insecure)
 		err = RegisterTraces(traces, api)
