@@ -8,6 +8,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
 	"flag"
@@ -190,12 +191,12 @@ func main() {
 
 	files := command_args[1:]
 
-	var err error
+	var gerr error
 	switch command {
 	case CHECK:
 		readers, names, err_ := OpenFilesOrStdin(files, *stdin)
 		if err_ != nil {
-			err = err_
+			gerr = err_
 			break
 		}
 		api := CreateClient(*url, auth_token, *insecure)
@@ -204,7 +205,7 @@ func main() {
 			log.Errorf("%v", err_)
 		}
 		if !check {
-			err = fmt.Errorf("not all products could be validated successfully")
+			gerr = fmt.Errorf("not all products could be validated successfully")
 		}
 	case HELP:
 		PrintUsageAndExit(true, 0)
@@ -216,24 +217,32 @@ func main() {
 		traces := CreateProductTraces(files, &tmpl, hash_function, private_key, certificate)
 		fmt.Printf("%s\n", FormatTraces(&traces))
 	case PUBLISH:
-		// todo print warning if arguments were set that are not used?
 		var readers []io.Reader
-		readers, _, err = OpenFilesOrStdin(files, *stdin)
-		if err != nil {
+		readers, _, gerr = OpenFilesOrStdin(files, *stdin)
+		if gerr != nil {
 			break
 		}
-		var traces []RegisterTrace
-		traces, err = ReadProductTraces(readers...)
-		if err != nil {
-			break
-		}
-		log.Infof("Loaded %d traces.", len(traces))
-		UpdateTraces(&traces, &tmpl, private_key, certificate)
 		api := CreateClient(*url, auth_token, *insecure)
-		err = RegisterTraces(traces, api)
-		if err != nil {
-			log.Warn("Traces could not be registered, dumping for recovery.")
-			fmt.Printf("%s\n", FormatTraces(&traces))
+
+		var traces []RegisterTrace
+		for {
+			if traces, gerr = ReadProductTraces(readers...); gerr != nil {
+				break
+			}
+			log.Infof("Loaded %d traces.", len(traces))
+			UpdateTraces(&traces, &tmpl, private_key, certificate)
+			gerr = RegisterTraces(traces, api)
+			if gerr != nil {
+				log.Warn("Traces could not be registered, dumping for recovery.")
+				fmt.Printf("%s\n", FormatTraces(&traces))
+
+				// two options here, either continue and dump the remaining traces, or break with warning
+				log.Warn("Additional traces from input might not have been loaded yet.")
+				break
+			}
+		}
+		if gerr == io.EOF {
+			gerr = nil
 		}
 	case REGISTER:
 		if *stdin {
@@ -242,13 +251,13 @@ func main() {
 		tmpl.Event.Validate() // force this to be a valid event here
 		traces := CreateProductTraces(files, &tmpl, hash_function, private_key, certificate)
 		api := CreateClient(*url, auth_token, *insecure)
-		err = RegisterTraces(traces, api)
-		if err != nil {
+		gerr = RegisterTraces(traces, api)
+		if gerr != nil {
 			log.Warn("Traces could not be registered, dumping for recovery.")
 			fmt.Printf("%s\n", FormatTraces(&traces))
 		}
 	case STATUS:
-		err = CheckStatus(*url, *insecure)
+		gerr = CheckStatus(*url, *insecure)
 	case VERSION:
 		fmt.Printf("CDAS Trace CLI Version: %s\n", version)
 	default:
@@ -256,8 +265,8 @@ func main() {
 		PrintUsageAndFail()
 	}
 
-	if err != nil {
-		log.Errorf("%v", err)
+	if gerr != nil {
+		log.Errorf("Error: %v", gerr)
 		os.Exit(1)
 	}
 }
@@ -414,7 +423,7 @@ func OpenFiles(files []string) ([]io.Reader, []string, error) {
 		if err != nil {
 			return readers, names, err
 		}
-		readers = append(readers, r)
+		readers = append(readers, bufio.NewReader(r))
 		names = append(names, file)
 	}
 	return readers, names, nil
