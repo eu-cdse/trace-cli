@@ -140,7 +140,7 @@ func CreateSignatureContents(p *Product, event TraceEvent) []byte {
 
 func UpdateTraces(traces *[]RegisterTrace, template *TraceTemplate, key any, cert any) {
 	log.Infof("Updating %d trace(s)...", len(*traces))
-	if template.Name != nil && len(*traces) > 1 {
+	if template.Name != nil && *template.Name != "" && len(*traces) > 1 {
 		log.Warn("Product name was specified, but traces for multiple products were requested; the specified product name will be ignored.")
 		template.Name = nil
 	}
