@@ -375,5 +375,5 @@ func RegisterTraces(traces []RegisterTrace, api *ClientWithResponses) error {
 		}
 		return nil
 	}
-	return fmt.Errorf("invalid response from service: %s", res.Status())
+	return fmt.Errorf("invalid response from service: %s: %s", res.Status(), res.Body)
 }
