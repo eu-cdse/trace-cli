@@ -1,3 +1,11 @@
 {
-    "image": "golang:latest"
+    "image": "golang:latest",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "golang.go",
+                "eamodio.gitlens"
+            ]
+        }
+    }
 }
