@@ -24,18 +24,37 @@ func ReadProductTraces(readers ...io.Reader) ([]RegisterTrace, error) {
 	traces := make([]RegisterTrace, 0, len(readers))
 	var err error
 	for _, reader := range readers {
-		ReadProductTracesAppend(reader, &traces)
+		err = ReadProductTracesAppend(reader, &traces)
+		if err != nil {
+			return []RegisterTrace{}, err
+		}
 	}
 	return traces, err
 }
 
+type SingleByteReader struct {
+	rd io.Reader
+}
+
+func (rd *SingleByteReader) Read(p []byte) (n int, err error) {
+	if len(p) == 0 {
+		return rd.rd.Read(p)
+	}
+	return rd.rd.Read(p[:1])
+}
+
 func ReadProductTracesAppend(reader io.Reader, traces *[]RegisterTrace) error {
+	// the decoder manages its own buffer and reads ahead
+	// thus we need to limit it to reading only 1 byte at a time.
+	byte_reader := &SingleByteReader{reader}
+
 	var t []RegisterTrace
-	decoder := json.NewDecoder(reader)
+	decoder := json.NewDecoder(byte_reader)
 	err := decoder.Decode(&t)
 	if err != nil {
 		return err
 	}
+
 	// we only append traces here, this does not check for duplicates
 	*traces = append(*traces, t...)
 	return nil

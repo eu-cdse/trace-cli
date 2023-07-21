@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -25,6 +26,43 @@ func expectArrayEqual[T comparable](expected []T, actual []T, t *testing.T) {
 func expectPrefix(expected_prefix string, actual string, t *testing.T) {
 	if !strings.HasPrefix(actual, expected_prefix) {
 		t.Fatalf("Results don't match. Expected prefix '%v', Actual '%v'", expected_prefix, actual)
+	}
+}
+
+func stringReader(str string) io.Reader {
+	return strings.NewReader(str)
+}
+
+func TestSingleByteReader(t *testing.T) {
+	data := strings.NewReader("asdfghjkl")
+
+	rd := &SingleByteReader{data}
+
+	arr := []byte{}
+	n, err := rd.Read(arr)
+	ExpectNoErr(err, t)
+	expectEqual(0, n, t)
+
+	arr = make([]byte, 10)
+	n, err = rd.Read(arr)
+	ExpectNoErr(err, t)
+	expectEqual(1, n, t)
+	expectEqual(arr[0], 'a', t)
+
+	n, err = rd.Read(arr)
+	ExpectNoErr(err, t)
+	expectEqual(1, n, t)
+	expectEqual(arr[0], 's', t)
+
+	// empty raw reader
+	n, err = data.Read(arr)
+	ExpectNoErr(err, t)
+	expectEqual(7, n, t)
+
+	n, err = rd.Read(arr)
+	expectEqual(0, n, t)
+	if err == nil {
+		t.Fatalf("expected error at end, but got '%v'", err)
 	}
 }
 
@@ -193,14 +231,15 @@ func TestTraceInputs(t *testing.T) {
 }
 
 func TestReadTraces(t *testing.T) {
-	expected := CreateProductTraces([]string{"test-data/test1.bin"}, &TraceTemplate{}, BLAKE3, nil, nil)
+	expected := CreateProductTraces([]string{"test-data/test1.bin", "test-data/test2.bin"}, &TraceTemplate{}, BLAKE3, nil, nil)
 	output := FormatTraces(&expected)
-	actual, err := ReadProductTraces(strings.NewReader(output))
+	actual, err := ReadProductTraces(stringReader(output))
 	ExpectNoErr(err, t)
+	expectEqual(2, len(actual), t)
 	expectArrayEqual(expected, actual, t)
 }
 
-func TestReadTracesMulitple(t *testing.T) {
+func TestReadTracesMultipleReader(t *testing.T) {
 	input1 := CreateProductTraces([]string{"test-data/test1.bin"}, &TraceTemplate{}, BLAKE3, nil, nil)
 	input2 := CreateProductTraces([]string{"test-data/test2.bin"}, &TraceTemplate{}, BLAKE3, nil, nil)
 
@@ -212,9 +251,31 @@ func TestReadTracesMulitple(t *testing.T) {
 	output1 := FormatTraces(&input1)
 	output2 := FormatTraces(&input2)
 
-	actual, err := ReadProductTraces(strings.NewReader(output1), strings.NewReader(output2))
+	actual, err := ReadProductTraces(stringReader(output1), stringReader(output2))
 	ExpectNoErr(err, t)
 	expectArrayEqual(expected, actual, t)
+}
+
+func TestReadTracesSubsequently(t *testing.T) {
+	expected1 := CreateProductTraces([]string{"test-data/test1.bin"}, &TraceTemplate{}, BLAKE3, nil, nil)
+	expected2 := CreateProductTraces([]string{"test-data/test2.bin"}, &TraceTemplate{}, BLAKE3, nil, nil)
+
+	output := FormatTraces(&expected1) + FormatTraces(&expected2)
+	reader := stringReader(output)
+
+	actual1, err := ReadProductTraces(reader)
+	ExpectNoErr(err, t)
+
+	actual2, err := ReadProductTraces(reader)
+	ExpectNoErr(err, t)
+
+	_, err = ReadProductTraces(reader)
+	if err == nil {
+		t.Errorf("Expected error, but got '%v'", err)
+	}
+
+	expectArrayEqual(expected1, actual1, t)
+	expectArrayEqual(expected2, actual2, t)
 }
 
 func TestSignatureTraceMatch(t *testing.T) {
