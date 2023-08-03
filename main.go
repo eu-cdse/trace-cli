@@ -410,7 +410,7 @@ func ValidateInputs(input_string *string) *[]Input {
 
 func OpenFilesOrStdin(files []string, stdin bool) ([]io.Reader, []string, error) {
 	if stdin {
-		return []io.Reader{os.Stdin}, []string{"STDIN"}, nil
+		return []io.Reader{bufio.NewReader(os.Stdin)}, []string{"STDIN"}, nil
 	}
 	return OpenFiles(files)
 }
