@@ -211,7 +211,8 @@ func main() {
 		PrintUsageAndExit(true, 0)
 	case PRINT:
 		if *stdin {
-			log.Warn("STDIN processing not supported for print")
+			gerr = fmt.Errorf("STDIN processing not supported for print")
+			break
 		}
 		tmpl.Event.Validate() // force this to be a valid event here
 		traces := CreateProductTraces(files, &tmpl, hash_function, private_key, certificate)
@@ -246,7 +247,8 @@ func main() {
 		}
 	case REGISTER:
 		if *stdin {
-			log.Warn("STDIN processing not supported for register")
+			gerr = fmt.Errorf("STDIN processing not supported for register")
+			break
 		}
 		tmpl.Event.Validate() // force this to be a valid event here
 		traces := CreateProductTraces(files, &tmpl, hash_function, private_key, certificate)
