@@ -71,7 +71,7 @@ type TraceTemplate struct {
 
 func CreateProductTraces(files []string, template *TraceTemplate, hasher Algorithm, key any, cert any) []RegisterTrace {
 	log.WithFields(log.Fields{"files": files}).Infof("Creating traces for %d product(s)...", len(files))
-	if template.Name != nil && len(files) > 1 {
+	if template.Name != nil && *template.Name != "" && len(files) > 1 {
 		log.Warn("Product name was specified, but traces for multiple products were requested; the specified product name will be ignored.")
 		template.Name = nil
 	}
