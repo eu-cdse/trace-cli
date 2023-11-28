@@ -351,8 +351,12 @@ func (a Algorithm) Validate() Algorithm {
 	return a
 }
 
-func ValidateIncludePattern(pattern string) glob.Glob {
-	return glob.MustCompile(pattern)
+func ValidateIncludePattern(pattern string) *glob.Glob {
+	if pattern == "" {
+		return nil
+	}
+	glob := glob.MustCompile(pattern)
+	return &glob
 }
 
 func ValidateKeyFile(keyfile string) any {

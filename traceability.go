@@ -63,7 +63,7 @@ func ReadProductTracesAppend(reader io.Reader, traces *[]RegisterTrace) error {
 type TraceTemplate struct {
 	Name            *string
 	Hash            *string
-	Include_Pattern glob.Glob
+	Include_Pattern *glob.Glob
 	Inputs          *[]Input
 	Event           TraceEvent
 	Obsolescence    *string
@@ -111,8 +111,8 @@ func CreateProductInfo(filename string, template *TraceTemplate, hasher Algorith
 		p.Name = filepath.Base(filename)
 	}
 
-	if strings.HasSuffix(filename, ".zip") {
-		contents := HashContents(filename, template.Include_Pattern, hasher)
+	if template.Include_Pattern != nil && strings.HasSuffix(filename, ".zip") {
+		contents := HashContents(filename, *template.Include_Pattern, hasher)
 		content_list := make([]Content, len(*contents))
 		var i = 0
 		for path, hash := range *contents {
