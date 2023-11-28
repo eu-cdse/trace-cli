@@ -102,7 +102,7 @@ func main() {
 	auth_token := flag.String("auth", "", "The bearer token for authentication against the API endpoint.")
 	event := flag.String("event", "", "The trace event, can be any of the following: CREATE, COPY, DELETE.")
 	obsolete := flag.String("obsolete", "", "Creates an OBSOLETE trace with the given reason for the products.")
-	include_glob := flag.String("include", "*", "A glob pattern defining the elements within an archive to include.")
+	include_glob := flag.String("include", "", "A glob pattern defining the elements within an archive to include.")
 	name := flag.String("name", "", "The product name for which the trace is generated. (default is the filename)")
 	input_str := flag.String("input", "", "The input products based on which the product has been generated, as comma-separated pairs of NAME:HASH tuples, or [] to explicitly indicate no inputs.")
 	verbose := flag.Bool("verbose", false, "Turn on verbose output.")
@@ -142,6 +142,13 @@ func main() {
 
 	if event != nil && len(*event) > 0 {
 		tmpl.Event = TraceEvent(strings.ToUpper(*event)).Validate()
+
+		switch tmpl.Event {
+		case COPY, DELETE:
+			if *include_glob != "" || *input_str != "" {
+				log.Warn("It is discouraged to supply contents or inputs for COPY or DELETE events.")
+			}
+		}
 	}
 
 	if (len(*key_file) != 0) != (len(*cert_file) != 0) {
