@@ -279,7 +279,7 @@ func ValidateTrace(t *Trace, hash []byte, hash_func Algorithm) (bool, string) {
 	cer_bytes, key_err := DecodeBytes(t.Signature.Certificate)
 	hash_str := EncodeHash(hash)
 
-	if hash_func != Algorithm(t.HashAlgorithm) {
+	if hash_func != Algorithm(strings.ToUpper(t.HashAlgorithm)) {
 		return false, "FAIL (Wrong Algorithm)"
 	} else if len(t.Product.Hash) == 0 || !(hash_str == t.Product.Hash ||
 		ContentChecksumMatch(t.Product.Contents, hash_str)) {
@@ -358,12 +358,22 @@ func SignatureTraceMatch(trace *Trace, message string) bool {
 
 	// element by element compare
 	log.Debugf("Decoded signature message %v", actual)
-	return check_match(actual, expected, "hash", true) &&
-		check_match(actual, expected, "name", false) &&
-		check_match(actual, expected, "size", false) &&
-		check_match(actual, expected, "hash", false) &&
-		check_match(actual, expected, "contents", false) &&
-		check_match(actual, expected, "inputs", false)
+	check := []bool{
+		check_match(actual, expected, "hash", true),
+		check_match(actual, expected, "name", false),
+		check_match(actual, expected, "size", false),
+		check_match(actual, expected, "hash", false),
+		check_match(actual, expected, "contents", false),
+		check_match(actual, expected, "inputs", false),
+	}
+	log.Debugf("Signature content check %v", check)
+
+	for _, e := range check {
+		if e == false {
+			return false
+		}
+	}
+	return true
 }
 
 func SignatureOriginMatch() bool {
