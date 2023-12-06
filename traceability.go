@@ -227,6 +227,10 @@ func CheckProducts(readers []io.Reader, names []string, api *ClientWithResponses
 func CheckProduct(reader io.Reader, name string, api *ClientWithResponses, hasher Algorithm) (bool, error) {
 	log.Debugf("Checking traces for %s", name)
 	hash := HashData(reader, hasher)
+	return CheckHash(hash, name, api, hasher)
+}
+
+func CheckHash(hash []byte, name string, api *ClientWithResponses, hasher Algorithm) (bool, error) {
 	res, err := api.SearchHashV1WithResponse(context.Background(), EncodeHash(hash))
 	if err != nil {
 		return false, fmt.Errorf("unable to call API endpoint: %v", err)

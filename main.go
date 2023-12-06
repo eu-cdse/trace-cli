@@ -187,7 +187,7 @@ func main() {
 		}
 		// re-encode to ensure a unified format
 		*hash_value = EncodeHash(hash)
-		if TraceEvent(*event) != DELETE {
+		if TraceEvent(*event) != DELETE || command != CHECK {
 			// There are several elements that cannot be filled, e.g. product size.
 			// If this is a DELETE trace, then it will not be kept in long term storage,
 			// hence it is considered ok. But for all other cases it's better to be avoided.
@@ -201,15 +201,23 @@ func main() {
 	var gerr error
 	switch command {
 	case CHECK:
-		readers, names, err_ := OpenFilesOrStdin(files, *stdin)
-		if err_ != nil {
-			gerr = err_
-			break
+		var check bool
+		var err error
+		if *hash_value != "" {
+			hash, _ := DecodeHash(*hash_value)
+			api := CreateClient(*url, auth_token, *insecure)
+			check, err = CheckHash(hash, *name, api, hash_function)
+		} else {
+			readers, names, err_ := OpenFilesOrStdin(files, *stdin)
+			if err_ != nil {
+				gerr = err_
+				break
+			}
+			api := CreateClient(*url, auth_token, *insecure)
+			check, err = CheckProducts(readers, names, api, hash_function)
 		}
-		api := CreateClient(*url, auth_token, *insecure)
-		check, err_ := CheckProducts(readers, names, api, hash_function)
-		if err_ != nil {
-			log.Errorf("%v", err_)
+		if err != nil {
+			log.Errorf("%v", err)
 		}
 		if !check {
 			gerr = fmt.Errorf("not all products could be validated successfully")
