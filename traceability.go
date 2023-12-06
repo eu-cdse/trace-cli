@@ -294,8 +294,6 @@ func ValidateTrace(t *Trace, hash []byte, hash_func Algorithm) (bool, string) {
 		return false, "FAIL (Signature Mismatch)"
 	} else if !SignatureOriginMatch() {
 		return false, "FAIL (Signature Origin)" // or OK (...)?
-	} else if !SignatureTimestampMatch() {
-		return false, "FAIL (Signature Expired)" // or OK (...)?
 	} else if t.Event == OBSOLETE {
 		return true, "OK (Obsolete)"
 	}
@@ -370,11 +368,6 @@ func SignatureTraceMatch(trace *Trace, message string) bool {
 
 func SignatureOriginMatch() bool {
 	// TODO implement trace.Origin == signature.Origin
-	return true
-}
-
-func SignatureTimestampMatch() bool {
-	// TODO implement trace.RegistrationTime is within certificate.NotBefore+NotAfter
 	return true
 }
 
