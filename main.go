@@ -144,6 +144,8 @@ func main() {
 		tmpl.Event = TraceEvent(strings.ToUpper(*event)).Validate()
 
 		switch tmpl.Event {
+		case OBSOLETE:
+			log.Fatalf("Use --obsolete option to specifiy OBSOLETE traces and not the --event option.")
 		case COPY, DELETE:
 			if *include_glob != "" || *input_str != "" {
 				log.Warn("It is discouraged to supply contents or inputs for COPY or DELETE events.")
@@ -187,7 +189,7 @@ func main() {
 		}
 		// re-encode to ensure a unified format
 		*hash_value = EncodeHash(hash)
-		if TraceEvent(*event) != DELETE || command != CHECK {
+		if tmpl.Event != DELETE && command != CHECK {
 			// There are several elements that cannot be filled, e.g. product size.
 			// If this is a DELETE trace, then it will not be kept in long term storage,
 			// hence it is considered ok. But for all other cases it's better to be avoided.
@@ -338,9 +340,7 @@ func CreateClient(url string, auth_token *string, insecure bool) *ClientWithResp
 
 func (ev TraceEvent) Validate() TraceEvent {
 	switch ev {
-	case CREATE, COPY, DELETE:
-	case OBSOLETE:
-		log.Fatalf("Use --obsolete option to specifiy OBSOLETE traces.")
+	case CREATE, COPY, DELETE, OBSOLETE:
 	case TraceEvent(""):
 		log.Fatalf("Trace event undefined, please specify event using --event flag.")
 	default:
