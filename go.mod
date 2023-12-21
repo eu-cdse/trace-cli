@@ -11,8 +11,8 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/youmark/pkcs8 v0.0.0-20201027041543-1326539a0a0a
 	github.com/zeebo/blake3 v0.2.3
-	golang.org/x/crypto v0.5.0
-	golang.org/x/term v0.4.0
+	golang.org/x/crypto v0.17.0
+	golang.org/x/term v0.15.0
 )
 
 require (
@@ -25,7 +25,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.0.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
-	golang.org/x/sys v0.4.0 // indirect
+	golang.org/x/sys v0.15.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
