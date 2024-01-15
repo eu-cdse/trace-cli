@@ -311,7 +311,7 @@ func TestSignatureTraceMatchContents(t *testing.T) {
 	expectEqual(true, SignatureTraceMatch(&trace, message), t)
 
 	message = `{
-		"hash": "",
+		"hash": "", "event": "",
 		"contents": [
 			{"path": "jkl/abc.de", "hash": "11121314"},
 			{"path": "jkl/abc.ef", "hash": "15161718"}
@@ -320,7 +320,7 @@ func TestSignatureTraceMatchContents(t *testing.T) {
 	expectEqual(true, SignatureTraceMatch(&trace, message), t)
 
 	message = `{
-		"hash": "",
+		"hash": "", "event": "",
 		"contents": []
 		}`
 	expectEqual(false, SignatureTraceMatch(&trace, message), t)
@@ -346,7 +346,7 @@ func TestSignatureTraceMatchInputs(t *testing.T) {
 	expectEqual(true, SignatureTraceMatch(&trace, message), t)
 
 	message = `{
-		"hash": "",
+		"hash": "", "event": "",
 		"inputs": [
 			{"name": "abc.de", "hash": "11121314"},
 			{"name": "abc.ef", "hash": "15161718"}
@@ -355,7 +355,7 @@ func TestSignatureTraceMatchInputs(t *testing.T) {
 	expectEqual(true, SignatureTraceMatch(&trace, message), t)
 
 	message = `{
-		"hash": "",
+		"hash": "", "event": "",
 		"inputs": []
 		}`
 	expectEqual(false, SignatureTraceMatch(&trace, message), t)
@@ -368,32 +368,37 @@ func TestSignatureTraceMatchApprox(t *testing.T) {
 			Name: "asdf",
 			Size: 10023,
 		},
+		Event: COPY,
 	}
 
 	// no message = fail
 	message := "{}"
 	expectEqual(false, SignatureTraceMatch(&trace, message), t)
 
-	// must have at least hash
+	// must have at least hash and event
 	message = "{\"name\":\"asdf\"}"
 	expectEqual(false, SignatureTraceMatch(&trace, message), t)
 	message = "{\"hash\":\"01020304\"}"
+	expectEqual(false, SignatureTraceMatch(&trace, message), t)
+	message = "{\"event\":\"COPY\"}"
+	expectEqual(false, SignatureTraceMatch(&trace, message), t)
+	message = "{\"hash\":\"01020304\",\"event\":\"COPY\"}"
 	expectEqual(true, SignatureTraceMatch(&trace, message), t)
 
 	// can have unneeded fields
-	message = "{\"hash\":\"01020304\",\"other\":\"value\"}"
+	message = "{\"hash\":\"01020304\",\"event\":\"COPY\",\"other\":\"value\"}"
 	expectEqual(true, SignatureTraceMatch(&trace, message), t)
 
 	// order doesn't matter
-	message = "{\"name\":\"asdf\",\"hash\":\"01020304\"}"
+	message = "{\"name\":\"asdf\",\"hash\":\"01020304\",\"event\":\"COPY\"}"
 	expectEqual(true, SignatureTraceMatch(&trace, message), t)
 
 	// if field present, it must match
-	message = "{\"name\":\"jkl\",\"hash\":\"01020304\"}"
+	message = "{\"name\":\"jkl\",\"hash\":\"01020304\",\"event\":\"COPY\"}"
 	expectEqual(false, SignatureTraceMatch(&trace, message), t)
 
 	// check is case sensitive
-	message = "{\"Hash\":\"01020304\"}"
+	message = "{\"Hash\":\"01020304\"},\"event\":\"COPY\""
 	expectEqual(false, SignatureTraceMatch(&trace, message), t)
 }
 

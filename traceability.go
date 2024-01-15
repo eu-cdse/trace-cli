@@ -364,16 +364,16 @@ func SignatureTraceMatch(trace *Trace, message string) bool {
 	log.Debugf("Decoded signature message %v", actual)
 	check := []bool{
 		check_match(actual, expected, "hash", true),
+		check_match(actual, expected, "event", true),
 		check_match(actual, expected, "name", false),
 		check_match(actual, expected, "size", false),
-		check_match(actual, expected, "hash", false),
 		check_match(actual, expected, "contents", false),
 		check_match(actual, expected, "inputs", false),
 	}
 	log.Debugf("Signature content check %v", check)
 
 	for _, e := range check {
-		if e == false {
+		if !e {
 			return false
 		}
 	}
