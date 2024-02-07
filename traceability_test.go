@@ -112,6 +112,7 @@ ug2G
 	trace := Trace{
 		Product:       product,
 		HashAlgorithm: "SHA256",
+		Timestamp:     time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC), // must be within certificate range
 		Signature: CreateSignature(&RegisterTrace{Product: product},
 			private_key, certificate),
 	}

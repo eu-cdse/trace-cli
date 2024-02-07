@@ -288,6 +288,7 @@ hq3voIKDTqDt1s8fd+p5DntwxoEaJN3OuLphnFNzkmY=
 	template := &x509.Certificate{
 		SerialNumber:       big.NewInt(1234),
 		SignatureAlgorithm: x509.SHA256WithRSA,
+		NotAfter:           time.Now().Add(time.Second * +100),
 	}
 	certificate, err := x509.CreateCertificate(rand.Reader, template, template,
 		privateKey.Public(), privateKey)

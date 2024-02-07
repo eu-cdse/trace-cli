@@ -86,7 +86,7 @@ func VerifySignature(message []byte, signature []byte, certificate []byte, algor
 
 	cert, err := DecodeCertificateDER(certificate, sign_time)
 	if err != nil {
-		log.Errorf("Unable to decode signature certificate: %v", err)
+		log.Warnf("Unable to decode signature certificate: %v", err)
 		return false
 	}
 	log.Debugf("Signature Key Algorithm: %s", cert.SignatureAlgorithm.String())
@@ -183,6 +183,7 @@ func DecodeCertificateDER(certificate_der []byte, sign_time time.Time) (*x509.Ce
 	if sign_time.Before(certificate.NotBefore) || sign_time.After(certificate.NotAfter) {
 		log.Warnf("Certificate is expired: %v is not in valid range [%v, %v]",
 			sign_time, certificate.NotBefore, certificate.NotAfter)
+		return nil, fmt.Errorf("certificate expired.")
 	}
 	return certificate, nil
 }
