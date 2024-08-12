@@ -91,17 +91,16 @@ HQwbNI9699O2uJopIg/zPGN/Yfixptbj5g==
 	ExpectNoErr(err, t, "Decoding private key: ")
 	certificate, err := DecodeCertificatePEM([]byte(`
 -----BEGIN CERTIFICATE-----
-MIIB3zCCAYWgAwIBAgIUM79G6XVXCF4OgceWfI8TW6tlLw4wCgYIKoZIzj0EAwIw
-RTELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGElu
-dGVybmV0IFdpZGdpdHMgUHR5IEx0ZDAeFw0yMzAzMTAyMTQyNDZaFw0yNDAzMDky
-MTQyNDZaMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYD
-VQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwWTATBgcqhkjOPQIBBggqhkjO
-PQMBBwNCAATSyJ17QErcgVFu/ZzsDLSNHEjyWD9tzdiOYXMJ6IPz1pWUu3KquyEd
-DBs0j3r307a4mikiD/M8Y39h+LGm1uPmo1MwUTAdBgNVHQ4EFgQUqrYqmOxP+5k6
-+fS4tOZzDzDZVdowHwYDVR0jBBgwFoAUqrYqmOxP+5k6+fS4tOZzDzDZVdowDwYD
-VR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNIADBFAiEAw9U3hqAjka7v/Ef1RpQF
-iDJ7shMbFZyoqIsmPKlm1zUCIFgFkahzLWnLZxCCLPSecCPMWzsV6MRk+F4IzMFY
-ug2G
+MIIBtTCCAVugAwIBAgIUPTz++ju3aQVfrVBgSgZEIFlzn5YwCgYIKoZIzj0EAwIw
+MDELMAkGA1UEBhMCQVQxITAfBgNVBAoMGENsb3VkZmxpZ2h0IEF1c3RyaWEgR21i
+SDAeFw0yNDA4MTIxNTE4MjVaFw0zNDA4MTAxNTE4MjVaMDAxCzAJBgNVBAYTAkFU
+MSEwHwYDVQQKDBhDbG91ZGZsaWdodCBBdXN0cmlhIEdtYkgwWTATBgcqhkjOPQIB
+BggqhkjOPQMBBwNCAATSyJ17QErcgVFu/ZzsDLSNHEjyWD9tzdiOYXMJ6IPz1pWU
+u3KquyEdDBs0j3r307a4mikiD/M8Y39h+LGm1uPmo1MwUTAdBgNVHQ4EFgQUqrYq
+mOxP+5k6+fS4tOZzDzDZVdowHwYDVR0jBBgwFoAUqrYqmOxP+5k6+fS4tOZzDzDZ
+VdowDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNIADBFAiEAzH20lo3vQdVj
+MHAB++WSVF0IffqX9lpCEdoukju2kHYCIEhYXCufDjiyFVTLijJtbeXpZMqjxjJR
+aO/AMbv1tUAL
 -----END CERTIFICATE-----	
 	`), time.Now())
 	ExpectNoErr(err, t, "Decoding certificate: ")
@@ -112,7 +111,7 @@ ug2G
 	trace := Trace{
 		Product:       product,
 		HashAlgorithm: "SHA256",
-		Timestamp:     time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC), // must be within certificate range
+		Timestamp:     time.Date(2024, time.September, 1, 0, 0, 0, 0, time.UTC), // must be within certificate range
 		Signature: CreateSignature(&RegisterTrace{Product: product},
 			private_key, certificate),
 	}
@@ -515,17 +514,16 @@ HQwbNI9699O2uJopIg/zPGN/Yfixptbj5g==
 	ExpectNoErr(err, t, "Decoding private key: ")
 	certificate, err := DecodeCertificatePEM([]byte(`
 -----BEGIN CERTIFICATE-----
-MIIB3zCCAYWgAwIBAgIUM79G6XVXCF4OgceWfI8TW6tlLw4wCgYIKoZIzj0EAwIw
-RTELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGElu
-dGVybmV0IFdpZGdpdHMgUHR5IEx0ZDAeFw0yMzAzMTAyMTQyNDZaFw0yNDAzMDky
-MTQyNDZaMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYD
-VQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwWTATBgcqhkjOPQIBBggqhkjO
-PQMBBwNCAATSyJ17QErcgVFu/ZzsDLSNHEjyWD9tzdiOYXMJ6IPz1pWUu3KquyEd
-DBs0j3r307a4mikiD/M8Y39h+LGm1uPmo1MwUTAdBgNVHQ4EFgQUqrYqmOxP+5k6
-+fS4tOZzDzDZVdowHwYDVR0jBBgwFoAUqrYqmOxP+5k6+fS4tOZzDzDZVdowDwYD
-VR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNIADBFAiEAw9U3hqAjka7v/Ef1RpQF
-iDJ7shMbFZyoqIsmPKlm1zUCIFgFkahzLWnLZxCCLPSecCPMWzsV6MRk+F4IzMFY
-ug2G
+MIIBtTCCAVugAwIBAgIUPTz++ju3aQVfrVBgSgZEIFlzn5YwCgYIKoZIzj0EAwIw
+MDELMAkGA1UEBhMCQVQxITAfBgNVBAoMGENsb3VkZmxpZ2h0IEF1c3RyaWEgR21i
+SDAeFw0yNDA4MTIxNTE4MjVaFw0zNDA4MTAxNTE4MjVaMDAxCzAJBgNVBAYTAkFU
+MSEwHwYDVQQKDBhDbG91ZGZsaWdodCBBdXN0cmlhIEdtYkgwWTATBgcqhkjOPQIB
+BggqhkjOPQMBBwNCAATSyJ17QErcgVFu/ZzsDLSNHEjyWD9tzdiOYXMJ6IPz1pWU
+u3KquyEdDBs0j3r307a4mikiD/M8Y39h+LGm1uPmo1MwUTAdBgNVHQ4EFgQUqrYq
+mOxP+5k6+fS4tOZzDzDZVdowHwYDVR0jBBgwFoAUqrYqmOxP+5k6+fS4tOZzDzDZ
+VdowDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNIADBFAiEAzH20lo3vQdVj
+MHAB++WSVF0IffqX9lpCEdoukju2kHYCIEhYXCufDjiyFVTLijJtbeXpZMqjxjJR
+aO/AMbv1tUAL
 -----END CERTIFICATE-----	
 	`), time.Now())
 	ExpectNoErr(err, t, "Decoding certificate: ")
