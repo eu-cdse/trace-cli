@@ -60,7 +60,7 @@ func TestHashFile(t *testing.T) {
 	}
 }
 
-func TestHashContents(t *testing.T) {
+func TestHashZipContents(t *testing.T) {
 	file := "test-data/test.zip"
 	expected := map[string]string{
 		"test1.bin":         "400a322239c83fbed043a8c9d898f2dd3d3634eeec0fab6fb0f577c1a56ada3a",
@@ -81,8 +81,42 @@ func TestHashContents(t *testing.T) {
 	}
 }
 
-func TestHashContentsPatternDir(t *testing.T) {
+func TestHashZipContentsPatternDir(t *testing.T) {
 	file := "test-data/test.zip"
+	expected := map[string]string{
+		"testdir/test3.bin": "a12959c6398697a95c097eebef1656ef686c92b1db60d537a942b6ce735f0285",
+	}
+
+	actual := *HashContents(file, glob.MustCompile("testdir/*.bin"), BLAKE3)
+
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("Results don't match. Expected '%v', Actual %v", expected, actual)
+	}
+}
+
+func TestHashTarContents(t *testing.T) {
+	file := "test-data/test.tar"
+	expected := map[string]string{
+		"test1.bin":         "400a322239c83fbed043a8c9d898f2dd3d3634eeec0fab6fb0f577c1a56ada3a",
+		"test2.bin":         "41d066840196797b48b2b30ac31cd7a2d916ea690f6a364bd94fdd1823418f3e",
+		"testdir/test3.bin": "a12959c6398697a95c097eebef1656ef686c92b1db60d537a942b6ce735f0285",
+	}
+
+	actual := *HashContents(file, glob.MustCompile("*"), BLAKE3)
+
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("Results don't match. Expected '%v', Actual %v", expected, actual)
+	}
+
+	actual_file_pattern := *HashContents(file, glob.MustCompile("*.bin"), BLAKE3)
+
+	if !reflect.DeepEqual(actual_file_pattern, expected) {
+		t.Fatalf("Results don't match. Expected '%v', Actual %v", expected, actual_file_pattern)
+	}
+}
+
+func TestHashTarContentsPatternDir(t *testing.T) {
+	file := "test-data/test.tar"
 	expected := map[string]string{
 		"testdir/test3.bin": "a12959c6398697a95c097eebef1656ef686c92b1db60d537a942b6ce735f0285",
 	}

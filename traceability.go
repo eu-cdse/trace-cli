@@ -111,7 +111,7 @@ func CreateProductInfo(filename string, template *TraceTemplate, hasher Algorith
 		p.Name = filepath.Base(filename)
 	}
 
-	if template.Include_Pattern != nil && strings.HasSuffix(filename, ".zip") {
+	if template.Include_Pattern != nil {
 		contents := HashContents(filename, *template.Include_Pattern, hasher)
 		content_list := make([]Content, len(*contents))
 		var i = 0

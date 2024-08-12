@@ -6,6 +6,7 @@
 package main
 
 import (
+	"archive/tar"
 	"archive/zip"
 	"bytes"
 	"encoding/hex"
@@ -39,20 +40,26 @@ func DecodeHash(checksum string) ([]byte, error) {
 }
 
 func HashContents(filename string, include_pattern glob.Glob, algorithm Algorithm) *map[string]string {
-	r, err := zip.OpenReader(filename)
+	if strings.HasSuffix(filename, ".zip") {
+		return HashZipContents(filename, include_pattern, algorithm)
+	}
+	if strings.HasSuffix(filename, ".tar") {
+		return HashTarContents(filename, include_pattern, algorithm)
+	}
+	log.Fatalf("Unable to load contents from file '%s', can only handle zip and tar archives.", filename)
+	return nil
+}
+
+func HashZipContents(filename string, include_pattern glob.Glob, algorithm Algorithm) *map[string]string {
+	archive, err := zip.OpenReader(filename)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer r.Close()
+	defer archive.Close()
 
 	var contents = make(map[string]string)
-	for _, f := range r.File {
-		if strings.HasSuffix(f.Name, "/") {
-			// log.Debugf("Skipping directory entry: '%s'", f.Name)
-			continue
-		}
-		if !include_pattern.Match(f.Name) {
-			log.Debugf("Skipping element, does not match include pattern: %s", f.Name)
+	for _, f := range archive.File {
+		if !includeArchiveContent(f.Name, include_pattern) {
 			continue
 		}
 
@@ -60,12 +67,58 @@ func HashContents(filename string, include_pattern glob.Glob, algorithm Algorith
 		if err != nil {
 			log.Fatal(err)
 		}
-		sum := HashData(rc, algorithm)
-		log.Debugf("%x %s\n", sum, f.Name)
-		contents[f.Name] = EncodeHash(sum)
+		contents[f.Name] = EncodeHash(hashArchiveContent(f.Name, rc, algorithm))
 		rc.Close()
 	}
 	return &contents
+}
+
+func HashTarContents(filename string, include_pattern glob.Glob, algorithm Algorithm) *map[string]string {
+	archive, err := os.Open(filename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer archive.Close()
+
+	reader := tar.NewReader(archive)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var contents = make(map[string]string)
+	for {
+		f, err := reader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if !includeArchiveContent(f.Name, include_pattern) {
+			continue
+		}
+		contents[f.Name] = EncodeHash(hashArchiveContent(f.Name, reader, algorithm))
+	}
+	return &contents
+}
+
+func hashArchiveContent(name string, reader io.Reader, algorithm Algorithm) []byte {
+	sum := HashData(reader, algorithm)
+	log.Debugf("%x %s\n", sum, name)
+	return sum
+}
+
+func includeArchiveContent(name string, include_pattern glob.Glob) bool {
+	if strings.HasSuffix(name, "/") {
+		// log.Debugf("Skipping directory entry: '%s'", f.Name)
+		return false
+	}
+	if !include_pattern.Match(name) {
+		log.Debugf("Skipping element, does not match include pattern: %s", name)
+		return false
+	}
+	return true
 }
 
 func HashFile(filename string, algorithm Algorithm) ([]byte, int64) {
@@ -73,6 +126,8 @@ func HashFile(filename string, algorithm Algorithm) ([]byte, int64) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer file.Close()
+
 	sum, size := HashStream(file, algorithm)
 	log.Debugf("%x %s\n", sum, filename)
 
