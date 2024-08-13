@@ -178,6 +178,65 @@ func TestCheckTraceChecksumContent(t *testing.T) {
 	expectEqual(true, status, t)
 }
 
+func TestCheckAndPrintTraces(t *testing.T) {
+	traces := []Trace{
+		{
+			Product: Product{
+				Hash: "abcd",
+			},
+			HashAlgorithm: "SHA256",
+			Event:         CREATE,
+		},
+		{
+			Product: Product{
+				Hash: "cdef",
+			},
+			HashAlgorithm: "SHA256",
+			Event:         CREATE,
+		},
+		{
+			Product: Product{
+				Hash: "cdab",
+			},
+			HashAlgorithm: "BLAKE3",
+			Event:         CREATE,
+		},
+	}
+	hash_bytes, err := DecodeHash("abcd")
+	ExpectNoErr(err, t, "Decoding Hash: ")
+	expectEqual(true, checkAndPrintTraces(&traces, hash_bytes, SHA256), t) // ok
+
+	hash_bytes, err = DecodeHash("abef")
+	ExpectNoErr(err, t, "Decoding Hash: ")
+	expectEqual(false, checkAndPrintTraces(&traces, hash_bytes, SHA256), t) // wrong checksum
+
+	hash_bytes, err = DecodeHash("cdab")
+	ExpectNoErr(err, t, "Decoding Hash: ")
+	expectEqual(false, checkAndPrintTraces(&traces, hash_bytes, SHA256), t) // wrong alg
+}
+
+func TestCheckAndPrintTracesObsolete(t *testing.T) {
+	traces := []Trace{
+		{
+			Product: Product{
+				Hash: "abcd",
+			},
+			HashAlgorithm: "SHA256",
+			Event:         CREATE,
+		},
+		{
+			Product: Product{
+				Hash: "abcd",
+			},
+			HashAlgorithm: "SHA256",
+			Event:         OBSOLETE,
+		},
+	}
+	hash_bytes, err := DecodeHash("abcd")
+	ExpectNoErr(err, t, "Decoding Hash: ")
+	expectEqual(false, checkAndPrintTraces(&traces, hash_bytes, SHA256), t) // fail because obsolete
+}
+
 func TestTraceNameOverride(t *testing.T) {
 	name := "asdf"
 	traces := CreateProductTraces([]string{"test-data/test1.bin"}, &TraceTemplate{Name: &name}, BLAKE3, nil, nil)

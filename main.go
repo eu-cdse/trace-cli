@@ -222,7 +222,7 @@ func main() {
 			log.Errorf("%v", err)
 		}
 		if !check {
-			gerr = fmt.Errorf("not all products could be validated successfully")
+			gerr = fmt.Errorf("not all products could be validated successfully, e.g. because they're obsolete, signature check failed, or no trace was found")
 		}
 	case HELP:
 		PrintUsageAndExit(true, 0)

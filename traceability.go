@@ -248,33 +248,40 @@ func CheckHash(hash []byte, name string, api *ClientWithResponses, hasher Algori
 		//TODO also try other hash algorithms
 	} else {
 		fmt.Printf("%s %s\tfound %d traces:\n", EncodeHash(hash), name, len(*traces))
-		var success = false
 
 		sort.Slice(*traces, func(i, j int) bool {
 			return (*traces)[i].Timestamp.Before((*traces)[j].Timestamp)
 		})
 
-		for _, t := range *traces {
-			check, status := ValidateTrace(&t, hash, hasher)
-			obsolescence := ""
-			if t.Obsolescence != nil {
-				obsolescence = " => " + *t.Obsolescence
-			}
-
-			//TODO print signature information (e.g. issuer)
-			fmt.Printf("\t%s  %10s %20s  %-25s %s %s\n",
-				t.Timestamp.UTC().Format(time.RFC3339),
-				t.Event,
-				t.Origin,
-				status,
-				t.Product.Name,
-				obsolescence)
-
-			success = check || success // any trace match is considered success
-		}
-		return success, nil
+		return checkAndPrintTraces(traces, hash, hasher), nil
 	}
 	return false, nil
+}
+
+func checkAndPrintTraces(traces *[]Trace, hash []byte, hasher Algorithm) bool {
+	var obsolete = false
+	var found_any = false
+	for _, t := range *traces {
+		obsolete = obsolete || t.Event == OBSOLETE
+
+		check, status := ValidateTrace(&t, hash, hasher)
+		obsolescence := ""
+		if t.Obsolescence != nil {
+			obsolescence = " => " + *t.Obsolescence
+		}
+
+		//TODO print signature information (e.g. issuer)
+		fmt.Printf("\t%s  %10s %28s  %-15s %s %s\n",
+			t.Timestamp.UTC().Format(time.RFC3339),
+			t.Event,
+			t.Origin,
+			status,
+			t.Product.Name,
+			obsolescence)
+
+		found_any = check || found_any // any trace match is considered success
+	}
+	return found_any && !obsolete
 }
 
 func ValidateTrace(t *Trace, hash []byte, hash_func Algorithm) (bool, string) {
