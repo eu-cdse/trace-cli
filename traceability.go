@@ -264,7 +264,7 @@ func checkAndPrintTraces(traces *[]Trace, hash []byte, hasher Algorithm) bool {
 	for _, t := range *traces {
 		obsolete = obsolete || t.Event == OBSOLETE
 
-		check, status := ValidateTrace(&t, hash, hasher)
+		check, status := validateTrace(&t, hash, hasher)
 		obsolescence := ""
 		if t.Obsolescence != nil {
 			obsolescence = " => " + *t.Obsolescence
@@ -284,7 +284,7 @@ func checkAndPrintTraces(traces *[]Trace, hash []byte, hasher Algorithm) bool {
 	return found_any && !obsolete
 }
 
-func ValidateTrace(t *Trace, hash []byte, hash_func Algorithm) (bool, string) {
+func validateTrace(t *Trace, hash []byte, hash_func Algorithm) (bool, string) {
 	log.WithFields(log.Fields{"trace": t}).Debug("Checking Trace")
 	sig_bytes, sig_err := DecodeBytes(t.Signature.Signature)
 	cer_bytes, key_err := DecodeBytes(t.Signature.Certificate)
@@ -293,7 +293,7 @@ func ValidateTrace(t *Trace, hash []byte, hash_func Algorithm) (bool, string) {
 	if hash_func != Algorithm(strings.ToUpper(t.HashAlgorithm)) {
 		return false, "FAIL (Wrong Algorithm)"
 	} else if len(t.Product.Hash) == 0 || !(hash_str == t.Product.Hash ||
-		ContentChecksumMatch(t.Product.Contents, hash_str)) {
+		contentChecksumMatch(t.Product.Contents, hash_str)) {
 		return false, "FAIL (Checksum Mismatch)"
 	} else if len(t.Signature.Signature) == 0 {
 		return true, "OK (Unsigned)"
@@ -301,18 +301,16 @@ func ValidateTrace(t *Trace, hash []byte, hash_func Algorithm) (bool, string) {
 		return false, "FAIL (Signature Decode)"
 	} else if !VerifySignature([]byte(t.Signature.Message), sig_bytes, cer_bytes, t.Signature.Algorithm, t.Timestamp) {
 		return false, "FAIL (Signature Invalid)"
-	} else if !SignatureTraceMatch(t, t.Signature.Message) {
+	} else if !signatureTraceMatch(t, t.Signature.Message) {
 		return false, "FAIL (Signature Mismatch)"
-	} else if !SignatureOriginMatch() {
+	} else if !signatureOriginMatch() {
 		return false, "FAIL (Signature Origin)" // or OK (...)?
-	} else if t.Event == OBSOLETE {
-		return true, "OK (Obsolete)"
 	}
 
 	return true, "OK"
 }
 
-func ContentChecksumMatch(contents *[]Content, checksum string) bool {
+func contentChecksumMatch(contents *[]Content, checksum string) bool {
 	if contents == nil {
 		return false
 	}
@@ -337,7 +335,7 @@ func check_match(actual json_map, expected json_map, key string, required bool) 
 	return !a_ok || !e_ok || reflect.DeepEqual(a, e)
 }
 
-func SignatureTraceMatch(trace *Trace, message string) bool {
+func signatureTraceMatch(trace *Trace, message string) bool {
 	// check if signature was created with same version
 	current := CreateSignatureContents(&trace.Product, trace.Event)
 	if string(current) == message {
@@ -387,7 +385,7 @@ func SignatureTraceMatch(trace *Trace, message string) bool {
 	return true
 }
 
-func SignatureOriginMatch() bool {
+func signatureOriginMatch() bool {
 	// TODO implement trace.Origin == signature.Origin
 	return true
 }

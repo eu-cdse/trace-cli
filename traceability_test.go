@@ -75,7 +75,7 @@ func TestCheckTraceUnsigned(t *testing.T) {
 	}
 
 	hash_bytes, _ := DecodeHash("abcd")
-	status, message := ValidateTrace(&trace, hash_bytes, SHA256)
+	status, message := validateTrace(&trace, hash_bytes, SHA256)
 	expectEqual(true, status, t)
 	expectPrefix("OK", message, t)
 }
@@ -118,7 +118,7 @@ aO/AMbv1tUAL
 
 	hash_bytes, err := DecodeHash("abcd")
 	ExpectNoErr(err, t, "Decoding Hash: ")
-	status, message := ValidateTrace(&trace, hash_bytes, SHA256)
+	status, message := validateTrace(&trace, hash_bytes, SHA256)
 	expectEqual(true, status, t)
 	expectEqual("OK", message, t)
 }
@@ -133,7 +133,7 @@ func TestCheckTraceAlgorithmMismatch(t *testing.T) {
 
 	hash_bytes, err := DecodeHash("abcd")
 	ExpectNoErr(err, t, "Decoding Hash: ")
-	status, message := ValidateTrace(&trace, hash_bytes, SHA3)
+	status, message := validateTrace(&trace, hash_bytes, SHA3)
 	expectEqual(false, status, t)
 	expectPrefix("FAIL", message, t)
 }
@@ -148,7 +148,7 @@ func TestCheckTraceChecksumMismatch(t *testing.T) {
 
 	hash_bytes, err := DecodeHash("fefe")
 	ExpectNoErr(err, t, "Decoding Hash: ")
-	status, message := ValidateTrace(&trace, hash_bytes, SHA256)
+	status, message := validateTrace(&trace, hash_bytes, SHA256)
 	expectEqual(false, status, t)
 	expectPrefix("FAIL", message, t)
 }
@@ -173,7 +173,7 @@ func TestCheckTraceChecksumContent(t *testing.T) {
 
 	hash_bytes, err := DecodeHash("fefe")
 	ExpectNoErr(err, t, "Decoding Hash: ")
-	status, message := ValidateTrace(&trace, hash_bytes, SHA256)
+	status, message := validateTrace(&trace, hash_bytes, SHA256)
 	expectPrefix("OK", message, t)
 	expectEqual(true, status, t)
 }
@@ -347,7 +347,7 @@ func TestSignatureTraceMatch(t *testing.T) {
 	}
 
 	message := string(CreateSignatureContents(&trace.Product, trace.Event))
-	expectEqual(true, SignatureTraceMatch(&trace, message), t)
+	expectEqual(true, signatureTraceMatch(&trace, message), t)
 }
 
 func TestSignatureTraceMatchContents(t *testing.T) {
@@ -367,7 +367,7 @@ func TestSignatureTraceMatchContents(t *testing.T) {
 	}
 
 	message := string(CreateSignatureContents(&trace.Product, trace.Event))
-	expectEqual(true, SignatureTraceMatch(&trace, message), t)
+	expectEqual(true, signatureTraceMatch(&trace, message), t)
 
 	message = `{
 		"hash": "", "event": "",
@@ -376,13 +376,13 @@ func TestSignatureTraceMatchContents(t *testing.T) {
 			{"path": "jkl/abc.ef", "hash": "15161718"}
 		]
 		}`
-	expectEqual(true, SignatureTraceMatch(&trace, message), t)
+	expectEqual(true, signatureTraceMatch(&trace, message), t)
 
 	message = `{
 		"hash": "", "event": "",
 		"contents": []
 		}`
-	expectEqual(false, SignatureTraceMatch(&trace, message), t)
+	expectEqual(false, signatureTraceMatch(&trace, message), t)
 }
 
 func TestSignatureTraceMatchInputs(t *testing.T) {
@@ -402,7 +402,7 @@ func TestSignatureTraceMatchInputs(t *testing.T) {
 	}
 
 	message := string(CreateSignatureContents(&trace.Product, trace.Event))
-	expectEqual(true, SignatureTraceMatch(&trace, message), t)
+	expectEqual(true, signatureTraceMatch(&trace, message), t)
 
 	message = `{
 		"hash": "", "event": "",
@@ -411,13 +411,13 @@ func TestSignatureTraceMatchInputs(t *testing.T) {
 			{"name": "abc.ef", "hash": "15161718"}
 		]
 		}`
-	expectEqual(true, SignatureTraceMatch(&trace, message), t)
+	expectEqual(true, signatureTraceMatch(&trace, message), t)
 
 	message = `{
 		"hash": "", "event": "",
 		"inputs": []
 		}`
-	expectEqual(false, SignatureTraceMatch(&trace, message), t)
+	expectEqual(false, signatureTraceMatch(&trace, message), t)
 }
 
 func TestSignatureTraceMatchApprox(t *testing.T) {
@@ -432,33 +432,33 @@ func TestSignatureTraceMatchApprox(t *testing.T) {
 
 	// no message = fail
 	message := "{}"
-	expectEqual(false, SignatureTraceMatch(&trace, message), t)
+	expectEqual(false, signatureTraceMatch(&trace, message), t)
 
 	// must have at least hash and event
 	message = "{\"name\":\"asdf\"}"
-	expectEqual(false, SignatureTraceMatch(&trace, message), t)
+	expectEqual(false, signatureTraceMatch(&trace, message), t)
 	message = "{\"hash\":\"01020304\"}"
-	expectEqual(false, SignatureTraceMatch(&trace, message), t)
+	expectEqual(false, signatureTraceMatch(&trace, message), t)
 	message = "{\"event\":\"COPY\"}"
-	expectEqual(false, SignatureTraceMatch(&trace, message), t)
+	expectEqual(false, signatureTraceMatch(&trace, message), t)
 	message = "{\"hash\":\"01020304\",\"event\":\"COPY\"}"
-	expectEqual(true, SignatureTraceMatch(&trace, message), t)
+	expectEqual(true, signatureTraceMatch(&trace, message), t)
 
 	// can have unneeded fields
 	message = "{\"hash\":\"01020304\",\"event\":\"COPY\",\"other\":\"value\"}"
-	expectEqual(true, SignatureTraceMatch(&trace, message), t)
+	expectEqual(true, signatureTraceMatch(&trace, message), t)
 
 	// order doesn't matter
 	message = "{\"name\":\"asdf\",\"hash\":\"01020304\",\"event\":\"COPY\"}"
-	expectEqual(true, SignatureTraceMatch(&trace, message), t)
+	expectEqual(true, signatureTraceMatch(&trace, message), t)
 
 	// if field present, it must match
 	message = "{\"name\":\"jkl\",\"hash\":\"01020304\",\"event\":\"COPY\"}"
-	expectEqual(false, SignatureTraceMatch(&trace, message), t)
+	expectEqual(false, signatureTraceMatch(&trace, message), t)
 
 	// check is case sensitive
 	message = "{\"Hash\":\"01020304\"},\"event\":\"COPY\""
-	expectEqual(false, SignatureTraceMatch(&trace, message), t)
+	expectEqual(false, signatureTraceMatch(&trace, message), t)
 }
 
 func TestUpdateTrace(t *testing.T) {
@@ -603,7 +603,7 @@ aO/AMbv1tUAL
 		},
 		Event: COPY,
 	}
-	status := SignatureTraceMatch(&expected, traces[0].Signature.Message)
+	status := signatureTraceMatch(&expected, traces[0].Signature.Message)
 	expectEqual(true, status, t)
 }
 

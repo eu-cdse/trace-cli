@@ -183,7 +183,7 @@ func DecodeCertificateDER(certificate_der []byte, sign_time time.Time) (*x509.Ce
 	if sign_time.Before(certificate.NotBefore) || sign_time.After(certificate.NotAfter) {
 		log.Warnf("Certificate is expired: %v is not in valid range [%v, %v]",
 			sign_time, certificate.NotBefore, certificate.NotAfter)
-		return nil, fmt.Errorf("certificate expired.")
+		return nil, fmt.Errorf("certificate expired")
 	}
 	return certificate, nil
 }
