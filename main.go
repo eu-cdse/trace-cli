@@ -145,7 +145,9 @@ func main() {
 
 		switch tmpl.Event {
 		case OBSOLETE:
-			log.Fatalf("Use --obsolete option to specifiy OBSOLETE traces and not the --event option.")
+			if obsolete == nil || len(*obsolete) == 0 {
+				log.Fatalf("Use --obsolete option to specifiy OBSOLETE traces and not the --event option.")
+			}
 		case COPY, DELETE:
 			if *include_glob != "" || *input_str != "" {
 				log.Warn("It is discouraged to supply contents or inputs for COPY or DELETE events.")
@@ -159,6 +161,9 @@ func main() {
 	}
 
 	if obsolete != nil && len(*obsolete) > 0 {
+		if tmpl.Event != OBSOLETE && tmpl.Event != TraceEvent("") {
+			log.Fatalf("No event can be specified with --obsolete flag, this will inherently be an OBSOLETE event.")
+		}
 		log.Infof("Marking products as OBSOLETE with reason '%s'", *obsolete)
 		tmpl.Event = OBSOLETE
 		tmpl.Obsolescence = obsolete
