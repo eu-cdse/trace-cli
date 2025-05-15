@@ -197,7 +197,7 @@ func UpdateTraces(traces *[]RegisterTrace, template *TraceTemplate, key any, cer
 			log.Infof("Updating signature in trace using provided certificate")
 			sig := CreateSignature(&(*traces)[i], key, cert)
 			(*traces)[i].Signature = sig
-		} else if sig_reset {
+		} else if sig_reset && (*traces)[i].Signature != (Signature{}) {
 			log.Warnf("Resetting signature because trace elements changed and no certificate was provided.")
 			(*traces)[i].Signature = Signature{}
 		}
