@@ -72,7 +72,7 @@ func Sign(data []byte, key any, cert any) (string, []byte, []byte) {
 	log.Debugf("Signature Algoritm: %s, in Certificate: %s", algorithm, certificate.SignatureAlgorithm.String())
 
 	if sign_err != nil {
-		log.Fatalf("Unable to sign trace: " + sign_err.Error())
+		log.Fatalf("Unable to sign trace: %v", sign_err.Error())
 	}
 	return algorithm, signature, certificate.Raw
 }
@@ -121,7 +121,7 @@ func DecodePrivateKey(key_pem []byte, password ...func() string) (any, error) {
 			pass = []byte(password[0]())
 		}
 		if len(pass) == 0 {
-			// this is currently a bug in pkcs8 lib.
+			// this is currently a bug in pkcs8 lib: https://github.com/youmark/pkcs8/issues/44
 			// golang pkcs8 can't handle encrpytion at all.
 			return nil, fmt.Errorf("encrypted private keys must have a non-empty password")
 		}

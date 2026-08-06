@@ -298,19 +298,20 @@ func main() {
 func CheckStatus(url string, insecure bool) error {
 	log.Infof("Checking API endpoint at %s", url)
 
-	api := CreateClient(url, nil, insecure)
-
-	res, err := api.PingStatusGetWithResponse(context.Background())
+	// this is not part of the openapi v1 spec, hence call it directly
+	res, err := http.Get(url + "/status")
 	if err != nil {
 		return fmt.Errorf("unable to call API endpoint: %v", err)
 	}
+	defer res.Body.Close()
 
-	if res.JSON200 != nil {
-		log.Println("Service response:", *res.JSON200)
+	body, err := io.ReadAll(res.Body)
+	if err == nil {
+		log.Infof("Service response: %s", body)
 		return nil
 	}
 
-	return fmt.Errorf("invalid response from service: %v", res.Status())
+	return fmt.Errorf("invalid response from service: %v", err)
 }
 
 func CreateClient(url string, auth_token *string, insecure bool) *ClientWithResponses {
@@ -327,7 +328,12 @@ func CreateClient(url string, auth_token *string, insecure bool) *ClientWithResp
 		return nil
 	}
 
-	options := make([]ClientOption, 0, 2)
+	// our openapi spec does not include the version, hence it has to be appended here to the base_url
+	server_url := fmt.Sprintf("%s/%s", url, API_VERSION)
+	log.Infof("Using server url: %s", server_url)
+
+	options := make([]ClientOption, 0, 3)
+	options = append(options, WithBaseURL(server_url))
 	if insecure {
 		options = append(options, skip_cert_verify)
 	}

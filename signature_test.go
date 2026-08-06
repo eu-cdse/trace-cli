@@ -1,3 +1,5 @@
+// For testing we use only 512bit RSA keys here, to keep the text concise
+//go:debug rsa1024min=0
 package main
 
 import (
@@ -75,7 +77,7 @@ ngdLdL7SUBqcJSbvt2zXUhBE2R5do1QwDHzXsqWf/MGNOytPQAB8ZiQ2Gzg+zlE=
 
 }
 
-// Currently not possible due to bug in library, issue #...
+// Currently not possible due to bug https://github.com/youmark/pkcs8/issues/44
 // func TestDecodePrivateKeyEmptyPassword(t *testing.T) {
 // 	pemfile := `
 // -----BEGIN ENCRYPTED PRIVATE KEY-----

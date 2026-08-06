@@ -31,9 +31,7 @@ tidy:
 	go fmt
 
 regenerate:
-	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest
-	oapi-codegen -generate types,client,spec -package main -o traceability.gen.go api-spec/cdas-traceability.json
-
+	go generate
 release:
 	GOOS=linux   GOARCH=amd64 go build -ldflags="${compact_flags}" -o "${release_dir}/${linux_target}/"
 	GOOS=windows GOARCH=amd64 go build -ldflags="${compact_flags}" -o "${release_dir}/${win32_target}/"

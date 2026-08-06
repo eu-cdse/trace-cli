@@ -20,6 +20,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+//go:generate go tool oapi-codegen -package main -generate types,client -o ./traceability.gen.go ./api-spec/cdas-traceability-v1.json
+
+// this is to be used as prefix in all requests, since it is not used in the spec already
+const API_VERSION = "v1"
+
 func ReadProductTraces(readers ...io.Reader) ([]RegisterTrace, error) {
 	traces := make([]RegisterTrace, 0, len(readers))
 	var err error
