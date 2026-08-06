@@ -1,5 +1,5 @@
-# CDAS Traceability Commandline Interface
-This repository provides the comandline interface to generate, validate, and register traces for products managed by the Traceabiltiy Service of the Copernicus Data Access Service.
+# CDSE Traceability Commandline Interface
+This repository provides the comandline interface to generate, validate, and register traces for products managed by the Traceability Service of the Copernicus Data Space Ecosystem.
 
 ## Running the CLI
 The general structure of the commandline tool follows the following pattern:
@@ -68,13 +68,13 @@ Note that some signing algorithms (e.g. ECDSA) vary the signature each time it i
 ## Building the CLI
 In order to build the commandline tool either a golang build environment has to be setup, or it is built using docker/podman:
 ```
-docker run --rm -it -v {$PWD}:/work/:Z -w /work/ golang:1.19.3 make
+docker run --rm -it -v {$PWD}:/work/:Z -w /work/ golang:1.25 make
 ```
 
 This will build the binary and run the tests. For additional build options, check the Makefile.
 
 ### Regenerating the OpenAPI endpoints
-All the api-endpoint handling is automatically generated from the Traceabiltiy OpenAPI specification. In order to regenerate the endpoints use the `regenerate` target:
+All the api-endpoint handling is automatically generated from the Traceability OpenAPI specification. In order to regenerate the endpoints use the `regenerate` target:
 ```
 make regenerate
 ```

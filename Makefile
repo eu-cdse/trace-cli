@@ -32,6 +32,7 @@ tidy:
 
 regenerate:
 	go generate
+
 release:
 	GOOS=linux   GOARCH=amd64 go build -ldflags="${compact_flags}" -o "${release_dir}/${linux_target}/"
 	GOOS=windows GOARCH=amd64 go build -ldflags="${compact_flags}" -o "${release_dir}/${win32_target}/"
