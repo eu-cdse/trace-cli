@@ -14,7 +14,7 @@ import (
 	"os"
 	"strings"
 
-	"golang.org/x/crypto/sha3"
+	"crypto/sha3"
 	// "crypto/sha256"
 	"github.com/minio/sha256-simd"
 	"github.com/zeebo/blake3"
