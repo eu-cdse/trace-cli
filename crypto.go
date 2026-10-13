@@ -39,7 +39,7 @@ func DecodeHash(checksum string) ([]byte, error) {
 	return hex.DecodeString(checksum)
 }
 
-func HashContents(filename string, include_pattern glob.Glob, algorithm Algorithm) *map[string]string {
+func HashContents(filename string, include_pattern *glob.Pattern, algorithm Algorithm) *map[string]string {
 	if strings.HasSuffix(filename, ".zip") {
 		return HashZipContents(filename, include_pattern, algorithm)
 	}
@@ -50,7 +50,7 @@ func HashContents(filename string, include_pattern glob.Glob, algorithm Algorith
 	return nil
 }
 
-func HashZipContents(filename string, include_pattern glob.Glob, algorithm Algorithm) *map[string]string {
+func HashZipContents(filename string, include_pattern *glob.Pattern, algorithm Algorithm) *map[string]string {
 	archive, err := zip.OpenReader(filename)
 	if err != nil {
 		log.Fatal(err)
@@ -73,7 +73,7 @@ func HashZipContents(filename string, include_pattern glob.Glob, algorithm Algor
 	return &contents
 }
 
-func HashTarContents(filename string, include_pattern glob.Glob, algorithm Algorithm) *map[string]string {
+func HashTarContents(filename string, include_pattern *glob.Pattern, algorithm Algorithm) *map[string]string {
 	archive, err := os.Open(filename)
 	if err != nil {
 		log.Fatal(err)
@@ -109,7 +109,7 @@ func hashArchiveContent(name string, reader io.Reader, algorithm Algorithm) []by
 	return sum
 }
 
-func includeArchiveContent(name string, include_pattern glob.Glob) bool {
+func includeArchiveContent(name string, include_pattern *glob.Pattern) bool {
 	if strings.HasSuffix(name, "/") {
 		// log.Debugf("Skipping directory entry: '%s'", f.Name)
 		return false

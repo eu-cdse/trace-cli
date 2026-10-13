@@ -66,12 +66,12 @@ func ReadProductTracesAppend(reader io.Reader, traces *[]RegisterTrace) error {
 }
 
 type TraceTemplate struct {
-	Name            *string
-	Hash            *string
-	Include_Pattern *glob.Glob
-	Inputs          *[]Input
-	Event           TraceEvent
-	Obsolescence    *string
+	Name           *string
+	Hash           *string
+	IncludePattern *glob.Pattern
+	Inputs         *[]Input
+	Event          TraceEvent
+	Obsolescence   *string
 }
 
 func CreateProductTraces(files []string, template *TraceTemplate, hasher Algorithm, key any, cert any) []RegisterTrace {
@@ -116,8 +116,8 @@ func CreateProductInfo(filename string, template *TraceTemplate, hasher Algorith
 		p.Name = filepath.Base(filename)
 	}
 
-	if template.Include_Pattern != nil {
-		contents := HashContents(filename, *template.Include_Pattern, hasher)
+	if template.IncludePattern != nil {
+		contents := HashContents(filename, template.IncludePattern, hasher)
 		content_list := make([]Content, len(*contents))
 		var i = 0
 		for path, hash := range *contents {

@@ -134,10 +134,10 @@ func main() {
 	certificate := ValidateCertFile(*cert_file)
 
 	tmpl := TraceTemplate{
-		Name:            name,
-		Hash:            hash_value,
-		Include_Pattern: ValidateIncludePattern(*include_glob),
-		Inputs:          ValidateInputs(input_str),
+		Name:           name,
+		Hash:           hash_value,
+		IncludePattern: ValidateIncludePattern(*include_glob),
+		Inputs:         ValidateInputs(input_str),
 	}
 
 	if event != nil && len(*event) > 0 {
@@ -370,12 +370,12 @@ func (a Algorithm) Validate() Algorithm {
 	return a
 }
 
-func ValidateIncludePattern(pattern string) *glob.Glob {
+func ValidateIncludePattern(pattern string) *glob.Pattern {
 	if pattern == "" {
 		return nil
 	}
 	glob := glob.MustCompile(pattern)
-	return &glob
+	return glob
 }
 
 func ValidateKeyFile(keyfile string) any {

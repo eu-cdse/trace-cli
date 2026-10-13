@@ -1,4 +1,5 @@
 // For testing we use only 512bit RSA keys here, to keep the text concise
+//
 //go:debug rsa1024min=0
 package main
 
