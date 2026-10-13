@@ -327,7 +327,7 @@ func contentChecksumMatch(contents *[]Content, checksum string) bool {
 	return false
 }
 
-type json_map map[string]interface{}
+type json_map map[string]any
 
 func check_match(actual json_map, expected json_map, key string, required bool) bool {
 	e, e_ok := expected[key]
